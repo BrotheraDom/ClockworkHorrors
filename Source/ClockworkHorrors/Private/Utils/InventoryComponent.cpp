@@ -4,6 +4,9 @@
 #include "Utils/InventoryComponent.h"
 #include "Utils/InventoryItemDataAsset.h"
 #include "BasePickup.h"
+#include "WeaponPickup.h"
+#include "BaseWeapon.h"
+#include <BaseCharacter.h>
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -297,16 +300,36 @@ void UInventoryComponent::HandleItemAction(int32 ActionIndex, int32 SlotIndex)
 
 		FVector SpawnLocation = GetOwner()->GetActorLocation() + FVector(0.f, 50.f, 0.f); // Spawn in front of the player
 		FRotator SpawnRotation = GetOwner()->GetActorRotation().Vector().Rotation(); // Spawn facing the player
-
-		ABasePickup* SpawnedItem = GetWorld()->SpawnActor<ABasePickup>(InventoryItems[SlotIndex].ItemData->BlueprintClass, SpawnLocation, SpawnRotation, spawnParams);
-
-		if (!SpawnedItem)
+		if (ABasePickup* SpawnedItem = Cast<ABasePickup>(InventoryItems[SlotIndex].ItemData->BlueprintClass))
 		{
-			UE_LOG(LogTemp, Error, TEXT("ItemClass is not a valid ABasePickup!"));
-			return;
-		}
+			SpawnedItem = GetWorld()->SpawnActor<ABasePickup>(InventoryItems[SlotIndex].ItemData->BlueprintClass, SpawnLocation, SpawnRotation, spawnParams);
 
-		SpawnedItem->SetItemDataAsset(InventoryItems[SlotIndex].ItemData);
+			if (!SpawnedItem)
+			{
+				UE_LOG(LogTemp, Error, TEXT("ItemClass is not a valid ABasePickup!"));
+				return;
+			}
+
+			SpawnedItem->SetItemDataAsset(InventoryItems[SlotIndex].ItemData);
+		}
+		else
+		{
+			ABaseCharacter* player = Cast<ABaseCharacter>(GetWorld()->GetFirstPlayerController()->GetPawn());
+			if (player->weapon)
+			{
+				player->weapon->bPickedUp = false;
+				UWeaponPickup* BasePickup = player->weapon->FindComponentByClass<UWeaponPickup>();
+				BasePickup->DropWeapon();
+				player->weapon = nullptr;
+				player->bHasWeapon = false;
+			}
+
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("ItemClass is not a valid ABaseWeapon!"));
+				return;
+			}
+		}
 
 		RemoveItemByIndex(SlotIndex);
 		break;
