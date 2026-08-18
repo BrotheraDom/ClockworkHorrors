@@ -100,10 +100,14 @@ Engine/Binaries/DotNET/SwarmAgent.Options.xml
 *.exe.manifest
 
 # Project-specific files
-WeShipEventually/Build/
-WeShipEventually/DerivedDataCache/
-WeShipEventually/Binaries/
-WeShipEventually/Intermediate/
+ClockworkHorrors/Build/
+ClockworkHorrors/DerivedDataCache/
+ClockworkHorrors/Binaries/
+ClockworkHorrors/Intermediate/
 
 # Project asset folder
-WeShipEventually/Content/xADG/Assets/*
+ClockworkHorrors/Content/xADG/Assets/*
+
+# GitHub
+Binaries/
+**/Binaries/
