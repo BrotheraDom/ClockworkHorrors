@@ -75,15 +75,18 @@ void UCodeGameInstance::LoadMainMenu()
 void UCodeGameInstance::SetMasterVolume(float Value)
 {
 	MasterVolume = Value;
+	OnAudioChanged.Broadcast(MasterVolume, SfxVolume, MusicVolume);
 }
 
 void UCodeGameInstance::SetSfxVolume(float Value)
 {
 	SfxVolume = Value;
+	OnAudioChanged.Broadcast(MasterVolume, SfxVolume, MusicVolume);
 }
 
 void UCodeGameInstance::SetMusicVolume(float Value)
 {
 	MusicVolume = Value;
+	OnAudioChanged.Broadcast(MasterVolume, SfxVolume, MusicVolume);
 }
 
