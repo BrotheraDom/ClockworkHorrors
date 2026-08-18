@@ -98,7 +98,9 @@ void ABaseCharacter::TryPickupInteract()
 		ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
 		if (baseWeapon)
 		{
-			UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
+			if (!baseWeapon->bPickedUp)
+			{
+				UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
 				if (!BasePickup)
 				{
 					continue;
@@ -111,21 +113,23 @@ void ABaseCharacter::TryPickupInteract()
 				//		continue;
 				//	}
 				//}
-			BasePickup->HandleInteractPressed();
-			InventoryComponent->AddItem(BasePickup->ItemDataAsset);
-			{
-				if (BasePickup->ItemDataAsset->WeaponClass)
+				BasePickup->HandleInteractPressed();
+				InventoryComponent->AddItem(BasePickup->ItemDataAsset);
 				{
-					weaponClass = BasePickup->ItemDataAsset->WeaponClass;
-					weapon = Cast<ABaseWeapon>(Actor);
-					EquipPickupWeapon();
+					if (BasePickup->ItemDataAsset->WeaponClass)
+					{
+						weaponClass = BasePickup->ItemDataAsset->WeaponClass;
+						weapon = Cast<ABaseWeapon>(Actor);
+						EquipPickupWeapon();
+					}
+
+
 				}
 
 
+
 			}
-
-
-
+			
 		}
 		return;
 	}
@@ -134,13 +138,18 @@ void ABaseCharacter::TryPickupInteract()
 void ABaseCharacter::EquipPickupWeapon()
 {
 	// THIS NEEDS TO SPAWN THE WEAPON FROM THE PICKUP'S ITEM DATA ASSET
-	/*bHasWeapon = true;
-	weapon->ParentPawn = Cast<APawn>(this);
-	weapon->AttachToComponent(
-		GetMesh(),
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		weapon->WeaponSocket
-	);*/
+	bHasWeapon = true;
+	if (weapon)
+	{
+		weapon->ParentPawn = Cast<APawn>(this);
+		weapon->AttachToComponent(
+			GetMesh(),
+			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+			weapon->WeaponSocket
+		);
+		weapon->bPickedUp = true;
+	}
+
 }
 //
 //float ABaseCharacter::ApplyDamage(float DamageAmount)

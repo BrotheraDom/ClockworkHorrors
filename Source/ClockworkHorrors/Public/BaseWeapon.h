@@ -42,6 +42,8 @@ public:
 	UFUNCTION()
 	void ActionStopped();
 	float GetDamage();
+	bool bPickedUp;
 private:
+	
 	
 };
