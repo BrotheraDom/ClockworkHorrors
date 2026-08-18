@@ -114,7 +114,7 @@ UHorizontalBox* UInventoryGridWidget::GetOrCreateRowForIndex(int32 SlotIndex)
 
 void UInventoryGridWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData, int32 SlotIndex, bool ItemSwaped)
 {
-	//UE_LOG(LogTemp, Error, TEXT("UInventoryGrid: Adding Item Data to Slot Index %d: %s with Quantity %d"), SlotIndex, *ItemData.GetItemDataName().ToString(), ItemData.Quantity);
+	UE_LOG(LogTemp, Error, TEXT("UInventoryGrid: Adding Item Data to Slot Index %d: %s with Quantity %d"), SlotIndex, *ItemData.GetItemDataName().ToString(), ItemData.Quantity);
 
 	if (!ItemData.IsValidEntry())
 	{
@@ -129,6 +129,7 @@ void UInventoryGridWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData
 		{
 			if (CanIncreaseSlotCount(InventorySlotWidgets.Num() + 1)) // Check if we can Create a new slot if the specified index is out of bounds
 			{
+				//UE_LOG(LogTemp, Warning, TEXT("UInventoryGrid: Slot Index %d is out of bounds! Creating a new slot for item %s with Quantity %d"), SlotIndex, *ItemData.GetItemDataName().ToString(), ItemData.Quantity);
 				EnsureSlotCount(InventorySlotWidgets.Num() + 1); // Try to add a new slot if we haven't reached the max slot count
 			}
 			else
@@ -155,6 +156,8 @@ void UInventoryGridWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData
 			TargetSlot->AddItemDataToSlot(ItemData);
 			ItemNameToSlotWidgetMap.Add(SlotIndex, TargetSlot);
 		}
+
+		InventorySlotWidgets[SlotIndex]->SetVisibility(ESlateVisibility::Visible);
 	}
 	else
 	{

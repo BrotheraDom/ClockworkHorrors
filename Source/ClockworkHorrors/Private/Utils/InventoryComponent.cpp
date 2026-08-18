@@ -70,7 +70,7 @@ bool UInventoryComponent::AddItem(UInventoryItemDataAsset* Item)
 	{
 		// If the item already exists in the inventory, just increase the quantity
 		InventoryItems[Index].Quantity += Item->Quantity;
-		//UE_LOG(Game, Error, TEXT("UInventoryComponent: Adding Quantity to Existing Item: %s, New Quantity: %d"), *ItemData.ItemName.ToString(), ItemData.Quantity);
+		UE_LOG(LogTemp, Log, TEXT("UInventoryComponent: Updated Item Quantity: %s, New Quantity: %d, Slot Index: %d"), *InventoryItems[Index].ItemData->ItemName.ToString(), InventoryItems[Index].Quantity, Index);
 		OnItemDataAdded.Broadcast(InventoryItems[Index], Index, false); // This is to notify the UI that an item quantity has been updated
 		return true;
 	}
@@ -84,7 +84,7 @@ bool UInventoryComponent::AddItem(UInventoryItemDataAsset* Item)
 		InventoryItems[index].Quantity = Item->Quantity; // Set the quantity to the item's quantity
 
 		CurrentAvailableSlots--;
-		//UE_LOG(Game, Error, TEXT("UInventoryComponent: BROADCASTING Adding New Item: %s, Quantity: %d, Slot Index: %d"), *InventoryItemsData[index].ItemName.ToString(), InventoryItemsData[index].Quantity, index);
+		UE_LOG(LogTemp, Log, TEXT("UInventoryComponent: Added NEW Item: %s, Quantity: %d, Slot Index: %d"), *InventoryItems[index].ItemData->ItemName.ToString(), InventoryItems[index].Quantity, index);
 		OnItemDataAdded.Broadcast(InventoryItems[index], index, false); // This is to notify the UI that a new item has been added
 	}
 	else
@@ -93,7 +93,7 @@ bool UInventoryComponent::AddItem(UInventoryItemDataAsset* Item)
 		return false; // No available slot to add the item
 	}
 
-	ShowInventory(); // Comment this out if you don't want to log the inventory after every addition
+	//ShowInventory(); // Comment this out if you don't want to log the inventory after every addition
 
 	return true;
 }
@@ -144,7 +144,7 @@ void UInventoryComponent::RemoveItemsByAmount(FName ItemName, int32 Quantity)
 		//UE_LOG(Game, Error, TEXT("UInventoryComponent: Total Quantity Remaining: %d"), TotalQuantity);
 	} while (TotalQuantity > 0); // Continue removing until all requested quantity is removed
 
-	ShowInventory();
+	//ShowInventory();
 }
 
 void UInventoryComponent::RemoveItemByName(FName ItemName)
@@ -172,6 +172,7 @@ void UInventoryComponent::RemoveItemByIndex(int32 Index)
 		OnItemRemoved.Broadcast(InventoryItems[Index].GetItemDataName(), InventoryItems[Index].Quantity, Index); // This is to notfy the UI that an item has been removed
 		InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
 		CurrentAvailableSlots++;
+		//ShowInventory();
 	}
 	else
 	{
