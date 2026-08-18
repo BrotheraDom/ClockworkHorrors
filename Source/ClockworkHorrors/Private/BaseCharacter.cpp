@@ -3,7 +3,6 @@
 #include "BaseCharacter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Misc/Optional.h"
-#include "RiflePickup.h"
 #include "BasePickup.h"
 #include "Components/SphereComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -92,43 +91,44 @@ void ABaseCharacter::TryPickupInteract()
 
 
 	
-	//GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
+	GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
 
-	//for (AActor* Actor : OverlappingActors)
-	//{
-	//	ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
-	//	if (baseWeapon)
-	//	{
-	//		UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
-	//			if (!BasePickup)
-	//			{
-	//				continue;
-	//			}
-	//			//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
-	//			//if (weapon)
-	//			//{
-	//			//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
-	//			//	{
-	//			//		continue;
-	//			//	}
-	//			//}
-	//		BasePickup->HandleInteractPressed();
-	//		{
-	//			if (BasePickup->ItemDataAsset->WeaponClass)
-	//			{
-	//				weaponClass = BasePickup->ItemDataAsset->WeaponClass;
-	//				weapon = Cast<ABaseWeapon>(Actor);
-	//				EquipPickupWeapon();
-	//			}
-
-
-	//		}
+	for (AActor* Actor : OverlappingActors)
+	{
+		ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
+		if (baseWeapon)
+		{
+			UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
+				if (!BasePickup)
+				{
+					continue;
+				}
+				//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
+				//if (weapon)
+				//{
+				//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
+				//	{
+				//		continue;
+				//	}
+				//}
+			BasePickup->HandleInteractPressed();
+			InventoryComponent->AddItem(BasePickup->ItemDataAsset);
+			{
+				if (BasePickup->ItemDataAsset->WeaponClass)
+				{
+					weaponClass = BasePickup->ItemDataAsset->WeaponClass;
+					weapon = Cast<ABaseWeapon>(Actor);
+					EquipPickupWeapon();
+				}
 
 
+			}
 
-	//	}
-	//	return;
-	//}
+
+
+		}
+		return;
+	}
 	
 }
 void ABaseCharacter::EquipPickupWeapon()
