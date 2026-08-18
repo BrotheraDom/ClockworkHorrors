@@ -44,6 +44,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Flags")
 	bool bIsCraftingMaterial = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Classes", meta = (tooltip = "THIS IS FOR DROPPING THINGS"))
+	TSubclassOf<AActor> BlueprintClass;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Classes", meta = (EditCondition = "bIsEquippable"))
 	TSubclassOf<AActor> WeaponClass;
 

@@ -52,6 +52,9 @@ public:
 	void RemoveItemByName(FName ItemName);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void RemoveItemByIndex(int32 SlotIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool HasItem(FName ItemName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
@@ -68,6 +71,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 FindItemByName(FName ItemName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void HandleSwapEvent(int32 OriginalIndex, int32 NewIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void HandleItemAction(int32 ActionIndex, int32 SlotIndex);
 
 	// DELEGATES
 	UPROPERTY(BlueprintReadOnly, Category = "Variables|Delegate")

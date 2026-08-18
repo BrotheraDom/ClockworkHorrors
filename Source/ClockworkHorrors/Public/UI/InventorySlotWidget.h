@@ -7,6 +7,10 @@
 #include "Utils/InventoryItemEntryStruct.h"
 #include "InventorySlotWidget.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDragStarted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSwapEventDel, int32, OriginalIndex, int32, NewIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPressEventDel, const FInventorySlotEntry&, ItemData, int32, SlotIndex, FVector2D, ScreenPosition);
+
 /**
  * 
  */
@@ -51,7 +55,20 @@ public:
 		return ItemSlotData.GetItemDataName() == Other.ItemSlotData.GetItemDataName();
 	}
 
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Variables|Delegate")
+	FOnPressEventDel OnPressEvent;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Variables|Delegate")
+	FOnDragStarted OnDragStarted;
+
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Variables|Delegate")
+	FOnSwapEventDel OnSwapEvent;
+
 protected:
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "InventorySlot")
 	FInventorySlotEntry ItemSlotData;
 

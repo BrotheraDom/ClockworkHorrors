@@ -6,7 +6,8 @@
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Utils/InventoryDragDropOperation.h"
 UInventorySlotWidget::UInventorySlotWidget(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	ItemSlotData = FInventorySlotEntry();
@@ -83,4 +84,70 @@ void UInventorySlotWidget::UpdateSlotUI()
 
 	ItemIcon->SetBrushFromTexture(ItemSlotData.ItemData->Icon);
 	ItemQuantityText->SetText(FText::AsNumber(ItemSlotData.Quantity));
+}
+
+FReply UInventorySlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.IsMouseButtonDown(EKeys::RightMouseButton) && ItemSlotData.IsValidEntry())
+	{
+		//Broadcast the OnPressEvent delegate with ItemSlotData as parameter and Slot Vector as parameter
+		const FVector2D SlotScreenPosition = InGeometry.GetAbsolutePosition();
+		OnPressEvent.Broadcast(ItemSlotData, SlotIndex, SlotScreenPosition);
+		UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::NativeOnMouseButtonDown: Right mouse button down on slot with item %s at index %d"), *ItemSlotData.GetItemDataName().ToString(), SlotIndex);
+		return UWidgetBlueprintLibrary::DetectDragIfPressed(InMouseEvent, this, EKeys::RightMouseButton).NativeReply;
+	}
+
+	//UE_LOG(Game, Warning, TEXT("UInventorySlot::NativeOnMouseButtonDown called"));
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+void UInventorySlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+{
+	//UE_LOG(Game, Warning, TEXT("UInventorySlot::NativeOnDragDetected ATTEMPT! called for slot: %s"), *ItemName.ToString());
+	
+	UInventoryDragDropOperation* DragOperation = NewObject<UInventoryDragDropOperation>();
+	if (DragOperation && ItemSlotData.IsValidEntry())
+	{
+		OnDragStarted.Broadcast();
+
+		//UE_LOG(LogTemp, Warning, TEXT("item is equpped: %s"), (ItemData.bIsEquipped ? TEXT("true") : TEXT("false")));
+		if (ItemSlotData.bIsEquipped)
+		{
+			//this->EnableEquippedOverlay(false);
+		}
+		//UE_LOG(Game, Warning, TEXT("Drag Detected: %s"), *ItemName.ToString());
+		UInventorySlotWidget* VisualClone = CreateWidget<UInventorySlotWidget>(GetWorld(), GetClass());
+		VisualClone->AddItemDataToSlot(ItemSlotData);
+		DragOperation->DefaultDragVisual = VisualClone;
+		DragOperation->SourceInventorySlot = this;
+		OutOperation = DragOperation;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("UInventorySlot::NativeOnDragDetected FAILED!!! to create drag operation or slot is not occupied!"));
+		//OutOperation = nullptr;
+	}
+	
+}
+
+bool UInventorySlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	
+	if (UInventoryDragDropOperation* DragOp = Cast<UInventoryDragDropOperation>(InOperation))
+	{
+		//UE_LOG(Game, Warning, TEXT("Drop Detected: %s"), *ItemName.ToString());
+		if (DragOp->SourceInventorySlot && DragOp->SourceInventorySlot != this)
+		{
+			//UE_LOG(Game, Warning, TEXT("Swapping items between slots: %s and %s"), *DragOp->SourceInventorySlot->ItemName.ToString(), *ItemName.ToString());
+
+			// Swap logic
+			UInventorySlotWidget* FromSlot = DragOp->SourceInventorySlot;
+
+			OnSwapEvent.Broadcast(FromSlot->SlotIndex, SlotIndex);
+
+			return true;
+		}
+	}
+	
+	return false;
 }

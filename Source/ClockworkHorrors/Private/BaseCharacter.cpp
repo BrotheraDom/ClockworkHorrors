@@ -64,12 +64,13 @@ ABaseCharacter::ABaseCharacter()
 
 void ABaseCharacter::TryPickupInteract()
 {
-	UE_LOG(LogTemp, Warning, TEXT("TryPickupInteract called"));
+	//UE_LOG(LogTemp, Warning, TEXT("TryPickupInteract called"));
 	TArray<AActor*> OverlappingActors;
 
 
 
 	///REMOVE THIS BLOCK OF CODE LATER, THIS IS JUST FOR TESTING INVENTORTY COMPONENT FUNCTIONALITY
+	
 	GetOverlappingActors(OverlappingActors, ABasePickup::StaticClass());
 
 	for (AActor* Actor : OverlappingActors)
@@ -83,61 +84,63 @@ void ABaseCharacter::TryPickupInteract()
 		BasePickup->OnInteract();
 		return;
 	}
+	
 
 
 
 
 
 
-	/*
-	GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
+	
+	//GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
 
-	for (AActor* Actor : OverlappingActors)
-	{
-		ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
-		if (baseWeapon)
-		{
-			UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
-				if (!BasePickup)
-				{
-					continue;
-				}
-				//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
-				//if (weapon)
-				//{
-				//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
-				//	{
-				//		continue;
-				//	}
-				//}
-			BasePickup->HandleInteractPressed();
-			{
-				if (BasePickup->ItemDataAsset->WeaponClass)
-				{
-					weaponClass = BasePickup->ItemDataAsset->WeaponClass;
-					weapon = Cast<ABaseWeapon>(Actor);
-					EquipPickupWeapon();
-				}
-
-
-			}
+	//for (AActor* Actor : OverlappingActors)
+	//{
+	//	ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
+	//	if (baseWeapon)
+	//	{
+	//		UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
+	//			if (!BasePickup)
+	//			{
+	//				continue;
+	//			}
+	//			//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
+	//			//if (weapon)
+	//			//{
+	//			//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
+	//			//	{
+	//			//		continue;
+	//			//	}
+	//			//}
+	//		BasePickup->HandleInteractPressed();
+	//		{
+	//			if (BasePickup->ItemDataAsset->WeaponClass)
+	//			{
+	//				weaponClass = BasePickup->ItemDataAsset->WeaponClass;
+	//				weapon = Cast<ABaseWeapon>(Actor);
+	//				EquipPickupWeapon();
+	//			}
 
 
+	//		}
 
-		}
-		return;
-	}
-	*/
+
+
+	//	}
+	//	return;
+	//}
+	
 }
 void ABaseCharacter::EquipPickupWeapon()
 {
-	bHasWeapon = true;
+	// THIS NEEDS TO SPAWN THE WEAPON FROM THE PICKUP'S ITEM DATA ASSET
+	/*bHasWeapon = true;
 	weapon->ParentPawn = Cast<APawn>(this);
 	weapon->AttachToComponent(
 		GetMesh(),
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		weapon->WeaponSocket
-	);
+	);*/
 }
 //
 //float ABaseCharacter::ApplyDamage(float DamageAmount)
@@ -215,6 +218,7 @@ void ABaseCharacter::BeginPlay()
 			if (InventoryComponent)
 			{
 				InventoryComponent->OnItemDataAdded.AddDynamic(InventoryWidget, &UMainInventoryWidget::UpdateInventoryUI);
+				InventoryComponent->OnItemRemoved.AddDynamic(InventoryWidget, &UMainInventoryWidget::UpdateInventoryUI_Remove);
 				InventoryComponent->OnInventorySizeIncreased.AddDynamic(InventoryWidget, &UMainInventoryWidget::SetInventoryGridMaxSlotCount);
 			}
 		}
@@ -1057,7 +1061,7 @@ void ABaseCharacter::HideStartScreen()
 
 void ABaseCharacter::InventoryHUD()
 {
-	UE_LOG(LogTemp, Warning, TEXT("ABaseCharacter::InventoryHUD called. InventoryWidget is %s"), InventoryWidget ? TEXT("valid") : TEXT("null"));
+	//UE_LOG(LogTemp, Warning, TEXT("ABaseCharacter::InventoryHUD called. InventoryWidget is %s"), InventoryWidget ? TEXT("valid") : TEXT("null"));
 
 	if (InventoryWidget)
 	{

@@ -4,11 +4,13 @@
 #include "UI/ItemActionWidget.h"
 #include "Components/WidgetSwitcher.h"
 #include "UI/ButtonWithText.h"
+#include "BaseCharacter.h"
+#include "Utils/InventoryComponent.h"
 
 UItemActionWidget::UItemActionWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bIsFocusable = true;
+	SetIsFocusable(true);
 }
 
 void UItemActionWidget::NativePreConstruct()
@@ -18,6 +20,7 @@ void UItemActionWidget::NativePreConstruct()
 void UItemActionWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	CurrentSlotIndex = -1;
 
 	if (EquipSwitcher)
 	{
@@ -42,31 +45,85 @@ void UItemActionWidget::NativeConstruct()
 	{
 		DropButton->InternalButtonClicked.AddDynamic(this, &UItemActionWidget::OnDropActionButtonClicked);
 	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UItemActionWidget::NativeConstruct: World is null!"));
+		return;
+	}
+	APlayerController* const PC = World->GetFirstPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UItemActionWidget::NativeConstruct: PlayerController is null!"));
+		return;
+	}
+	ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(PC->GetPawn());
+	if (!PlayerCharacter)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UItemActionWidget::NativeConstruct: PlayerCharacter is null!"));
+		return;
+	}
+
+	UInventoryComponent* InventoryComponent = PlayerCharacter->GetComponentByClass<UInventoryComponent>();
+	if (!InventoryComponent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UItemActionWidget::NativeConstruct: InventoryComponent is null!"));
+		return;
+	}
+	OnItemActionClicked.AddDynamic(InventoryComponent, &UInventoryComponent::HandleItemAction);
 }
 
 void UItemActionWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-
-	if(!IsVisible())
-	{
-		return;
-	}
 }
 
-void UItemActionWidget::ShowWidget()
+void UItemActionWidget::ShowWidget(const FInventorySlotEntry& ItemEntry, int32 SlotIndex)
 {
+	if(!ItemEntry.IsValidEntry())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UItemActionWidget::ShowWidget: Attempted to show widget for invalid item entry"));
+		return;
+	}
+	CurrentSlotIndex = SlotIndex;
 	SetVisibility(ESlateVisibility::Visible);
+
+	// Determine which actions to show based on the item entry
+	if (ItemEntry.ItemData->bIsEquippable && ItemEntry.bIsEquipped) // If the item is equippable and currently equipped Show the Unequip button
+	{
+		EquipSwitcher->SetActiveWidgetIndex(1); // Switch to Unequip button
+		ShowEquipSwitcherAction();
+	}
+	else if (ItemEntry.ItemData->bIsEquippable && !ItemEntry.bIsEquipped) // If the item is equippable and not currently equipped Show the Equip button
+	{
+		EquipSwitcher->SetActiveWidgetIndex(0); // Switch to Equip button
+		ShowEquipSwitcherAction();
+	}
+	else if (!ItemEntry.ItemData->bIsEquippable) // If the item is not equippable, hide the EquipSwitcher
+	{
+		HideEquipSwitcherAction();
+	}
+
+	if(ItemEntry.ItemData->bIsHealthItem || ItemEntry.ItemData->bIsThrowable || ItemEntry.ItemData->bIsAttachment) // If the item is usable, show the Use button
+	{
+		ShowUseAction();
+	}
+	else
+	{
+		HideUseAction();
+	}
+	ShowDropAction(); // Always show the Drop button FOR NOW, but this can be changed later if needed
 }
 
-void UItemActionWidget::ShowEquipAction()
+void UItemActionWidget::ShowEquipSwitcherAction()
 {
-	if (!EquipButton)
+	if (!EquipSwitcher)
 	{
 		return;
 	}
 
-	EquipButton->SetVisibility(ESlateVisibility::Visible);
+	EquipSwitcher->SetVisibility(ESlateVisibility::Visible);
 }
 
 void UItemActionWidget::ShowUseAction()
@@ -92,16 +149,17 @@ void UItemActionWidget::ShowDropAction()
 void UItemActionWidget::HideWidget()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
+	CurrentSlotIndex = -1;
 }
 
-void UItemActionWidget::HideEquipAction()
+void UItemActionWidget::HideEquipSwitcherAction()
 {
-	if(!EquipButton)
+	if(!EquipSwitcher)
 	{
 		return;
 	}
 
-	EquipButton->SetVisibility(ESlateVisibility::Collapsed);
+	EquipSwitcher->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UItemActionWidget::HideUseAction()
@@ -127,9 +185,10 @@ void UItemActionWidget::HideDropAction()
 void UItemActionWidget::ResetMenu()
 {
 	EquipSwitcher->SetActiveWidgetIndex(0);
-	ShowEquipAction();
+	ShowEquipSwitcherAction();
 	ShowUseAction();
 	ShowDropAction();
+	CurrentSlotIndex = -1;
 }
 
 void UItemActionWidget::OnEquipActionButtonClicked()
@@ -139,7 +198,8 @@ void UItemActionWidget::OnEquipActionButtonClicked()
 		return;
 	}
 
-	OnItemActionClicked.Broadcast(0);
+	OnItemActionClicked.Broadcast(0, CurrentSlotIndex);
+	EquipSwitcher->SetActiveWidgetIndex(1); // Switch to Unequip button
 
 	HideWidget();
 }
@@ -151,7 +211,8 @@ void UItemActionWidget::OnUnequipActionButtonClicked()
 		return;
 	}
 	
-	OnItemActionClicked.Broadcast(1);
+	OnItemActionClicked.Broadcast(1, CurrentSlotIndex);
+	EquipSwitcher->SetActiveWidgetIndex(0); // Switch to Equip button
 
 	HideWidget();
 }
@@ -163,7 +224,7 @@ void UItemActionWidget::OnUseActionButtonClicked()
 		return;
 	}
 
-	OnItemActionClicked.Broadcast(2);
+	OnItemActionClicked.Broadcast(2, CurrentSlotIndex);
 
 	HideWidget();
 }
@@ -175,7 +236,7 @@ void UItemActionWidget::OnDropActionButtonClicked()
 		return;
 	}
 
-	OnItemActionClicked.Broadcast(3);
+	OnItemActionClicked.Broadcast(3, CurrentSlotIndex);
 
 	HideWidget();
 }

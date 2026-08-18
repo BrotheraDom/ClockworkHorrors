@@ -8,6 +8,9 @@
 #include "UI/InventorySlotWidget.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "UI/MainInventoryWidget.h"
+#include "BaseCharacter.h"
+#include "Utils/InventoryComponent.h"
 
 UInventoryGridWidget::UInventoryGridWidget(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -47,6 +50,40 @@ void UInventoryGridWidget::EnsureSlotCount(int32 DesiredCount)
 
 		NewSlot->SetSlotIndex(NewIndex);
 
+		if (MainInventoryReference)
+		{
+			NewSlot->OnPressEvent.AddDynamic(MainInventoryReference, &UMainInventoryWidget::HandleSlotPressed);
+			NewSlot->OnDragStarted.AddDynamic(MainInventoryReference, &UMainInventoryWidget::HandleDragStarted);
+
+			UWorld* World = GetWorld();
+			if(!World)
+			{
+				UE_LOG(LogTemp, Error, TEXT("UInventoryGridWidget::EnsureSlotCount: World is null!"));
+				return;
+			}
+			APlayerController* const PC = World->GetFirstPlayerController();
+			if(!PC)
+			{
+				UE_LOG(LogTemp, Error, TEXT("UInventoryGridWidget::EnsureSlotCount: PlayerController is null!"));
+				return;
+			}
+			ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(PC->GetPawn());
+			if(!PlayerCharacter)
+			{
+				UE_LOG(LogTemp, Error, TEXT("UInventoryGridWidget::EnsureSlotCount: PlayerCharacter is null!"));
+				return;
+			}
+
+			UInventoryComponent* InventoryComponent = PlayerCharacter->GetComponentByClass<UInventoryComponent>();
+			if(!InventoryComponent)
+			{
+				UE_LOG(LogTemp, Error, TEXT("UInventoryGridWidget::EnsureSlotCount: InventoryComponent is null!"));
+				return;
+			}
+			NewSlot->OnSwapEvent.AddDynamic(InventoryComponent, &UInventoryComponent::HandleSwapEvent);
+
+		}
+
 		UHorizontalBoxSlot* HBoxSlot = TargetRow->AddChildToHorizontalBox(NewSlot);
 		if (HBoxSlot)
 		{
@@ -81,7 +118,7 @@ void UInventoryGridWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData
 
 	if (!ItemData.IsValidEntry())
 	{
-		//UE_LOG(Game, Warning, TEXT("UInventoryGrid: ItemData is not valid! Cannot add item %s with Quantity %d to Slot Index %d"), *ItemData.ItemName.ToString(), ItemData.Quantity, SlotIndex);
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryGrid: ItemData is not valid! Cannot add item %s with Quantity %d to Slot Index %d"), *ItemData.GetItemDataName().ToString(), ItemData.Quantity, SlotIndex);
 		return;
 	}
 
@@ -90,9 +127,7 @@ void UInventoryGridWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData
 	{
 		if (!InventorySlotWidgets.IsValidIndex(SlotIndex))
 		{
-			UE_LOG(LogTemp, Error, TEXT("UInventoryGrid: Slot Index %d is out of bounds!"), SlotIndex);
-			UE_LOG(LogTemp, Warning, TEXT("UInventoryGrid: Cannot add item %s with Quantity %d to Slot Index %d"), *ItemData.GetItemDataName().ToString(), ItemData.Quantity, SlotIndex);
-			if(CanIncreaseSlotCount(InventorySlotWidgets.Num() + 1))
+			if (CanIncreaseSlotCount(InventorySlotWidgets.Num() + 1)) // Check if we can Create a new slot if the specified index is out of bounds
 			{
 				EnsureSlotCount(InventorySlotWidgets.Num() + 1); // Try to add a new slot if we haven't reached the max slot count
 			}
@@ -118,7 +153,7 @@ void UInventoryGridWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData
 		else if (!TargetSlot->IsSlotValid()) // If the slot is empty, add the item data to the slot
 		{
 			TargetSlot->AddItemDataToSlot(ItemData);
-			ItemNameToSlotWidgetMap.Add(ItemData.GetItemDataName(), TargetSlot);
+			ItemNameToSlotWidgetMap.Add(SlotIndex, TargetSlot);
 		}
 	}
 	else
@@ -154,6 +189,10 @@ void UInventoryGridWidget::RemoveItemFromSlot(FName ItemName, int32 Quantity, in
 		UE_LOG(LogTemp, Warning, TEXT("UInventoryGrid: Slot Index %d is out of bounds! Cannot remove item %s with Quantity %d"), SlotIndex, *ItemName.ToString(), Quantity);
 		return;
 	}
+
+	InventorySlotWidgets[SlotIndex]->ClearSlot();
+	InventorySlotWidgets[SlotIndex]->SetVisibility(ESlateVisibility::Hidden);
+	ItemNameToSlotWidgetMap.Remove(SlotIndex);
 }
 
 bool UInventoryGridWidget::CanIncreaseSlotCount(int32 NewSlotCount) const

@@ -22,11 +22,23 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	class UInventoryGridWidget* InventoryGrid;
 
+	UPROPERTY(meta = (BindWidget))
+	class UItemActionWidget* ItemActionWidget;
+
 	UFUNCTION(BlueprintCallable)
 	void ShowInventory(bool bInventoryShown);
 
+	UFUNCTION(BlueprintCallable)
+	void HandleSlotPressed(const FInventorySlotEntry& ItemEntry, int32 SlotIndex, FVector2D ScreenPosition);
+
+	UFUNCTION(BlueprintCallable)
+	void HandleDragStarted();
+
 	UFUNCTION()
 	void UpdateInventoryUI(const FInventorySlotEntry& ItemEntry, int32 SlotIndex, bool ItemSwaped);
+
+	UFUNCTION()
+	void UpdateInventoryUI_Remove(FName ItemName, int32 Quantity, int32 SlotIndex);
 
 	UFUNCTION()
 	void SetInventoryGridMaxSlotCount(int32 NewSlotCount);

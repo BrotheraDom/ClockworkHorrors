@@ -162,6 +162,11 @@ void ABasePickup::OnInteract()
 		UE_LOG(LogTemp, Warning, TEXT("Player not found!"));
 		return;
 	}
+	if(!ItemDataAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ItemDataAsset is null for pickup: %s"), *GetName());
+		return;
+	}
 
 	if (UInventoryComponent* Inventory = Player->FindComponentByClass<UInventoryComponent>())
 	{
@@ -184,5 +189,10 @@ void ABasePickup::OnInteract()
 UInventoryItemDataAsset* ABasePickup::GetItemDataAsset()
 {
 	return ItemDataAsset;
+}
+
+void ABasePickup::SetItemDataAsset(UInventoryItemDataAsset* NewItemDataAsset)
+{
+	ItemDataAsset = NewItemDataAsset;
 }
 

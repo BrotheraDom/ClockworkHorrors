@@ -60,4 +60,6 @@ public:
 	void OnInteract() override;
 	
 	class UInventoryItemDataAsset* GetItemDataAsset();
+
+	void SetItemDataAsset(UInventoryItemDataAsset* NewItemDataAsset);
 };

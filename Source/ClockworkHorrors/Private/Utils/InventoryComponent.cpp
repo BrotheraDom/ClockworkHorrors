@@ -3,6 +3,7 @@
 
 #include "Utils/InventoryComponent.h"
 #include "Utils/InventoryItemDataAsset.h"
+#include "BasePickup.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -164,6 +165,20 @@ void UInventoryComponent::RemoveItemByName(FName ItemName)
 	}
 }
 
+void UInventoryComponent::RemoveItemByIndex(int32 Index)
+{
+	if (Index >= 0 && Index < InventoryItems.Num())
+	{
+		OnItemRemoved.Broadcast(InventoryItems[Index].GetItemDataName(), InventoryItems[Index].Quantity, Index); // This is to notfy the UI that an item has been removed
+		InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
+		CurrentAvailableSlots++;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid index for removing item from inventory!"));
+	}
+}
+
 bool UInventoryComponent::HasItem(FName ItemName) const
 {
 	return false;
@@ -226,6 +241,78 @@ int32 UInventoryComponent::FindItemByName(FName ItemName) const
 	}
 
 	return INDEX_NONE;
+}
+
+void UInventoryComponent::HandleSwapEvent(int32 OriginalIndex, int32 NewIndex)
+{
+	if (OriginalIndex < 0 || OriginalIndex >= InventoryItems.Num() || NewIndex < 0 || NewIndex >= InventoryItems.Num())
+	{
+		//UE_LOG(Game, Warning, TEXT("Invalid indices for swapping items! OldIndex: %d, TargetIndex: %d"), OriginalIndex, NewIndex);
+		return;
+	}
+
+	FInventorySlotEntry TempItem = InventoryItems[OriginalIndex];
+	InventoryItems[OriginalIndex] = InventoryItems[NewIndex];
+	InventoryItems[NewIndex] = TempItem;
+	//Broadcasting the new item added event
+	OnItemDataAdded.Broadcast(InventoryItems[NewIndex], NewIndex, true);
+
+	//Broadcasting the old item added event
+	OnItemDataAdded.Broadcast(InventoryItems[OriginalIndex], OriginalIndex, true);
+
+	ShowInventory(); // Comment this out if you don't want to log the inventory after every swap
+}
+
+void UInventoryComponent::HandleItemAction(int32 ActionIndex, int32 SlotIndex)
+{
+	if(SlotIndex == -1)
+	{UE_LOG(LogTemp, Warning, TEXT("Invalid Slot Index for Item Action!"));
+	return;
+	}
+
+
+	switch (ActionIndex)
+	{
+	case 0: // Equip
+	{
+		// Handle equip logic here
+		break;
+	}
+	case 1: // Unequip
+	{
+		// Handle unequip logic here
+		break;
+	}
+	case 2: // Use
+	{
+		// Handle use/health logic here
+		break;
+	}
+	case 3: // Drop
+	{
+		FActorSpawnParameters spawnParams;
+		spawnParams.Instigator = nullptr; // No instigator for the spawner itself
+		spawnParams.Owner = GetOwner(); // Set the owner to the spawner itself
+
+		FVector SpawnLocation = GetOwner()->GetActorLocation() + FVector(0.f, 50.f, 0.f); // Spawn in front of the player
+		FRotator SpawnRotation = GetOwner()->GetActorRotation().Vector().Rotation(); // Spawn facing the player
+
+		ABasePickup* SpawnedItem = GetWorld()->SpawnActor<ABasePickup>(InventoryItems[SlotIndex].ItemData->BlueprintClass, SpawnLocation, SpawnRotation, spawnParams);
+
+		if (!SpawnedItem)
+		{
+			UE_LOG(LogTemp, Error, TEXT("ItemClass is not a valid ABasePickup!"));
+			return;
+		}
+
+		SpawnedItem->SetItemDataAsset(InventoryItems[SlotIndex].ItemData);
+
+		RemoveItemByIndex(SlotIndex);
+		break;
+	}
+	default:
+		break;
+	}
 }
 
 void UInventoryComponent::OnInteract()

@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Utils/InventoryItemEntryStruct.h"
 #include "ItemActionWidget.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemActionDelegate, int32, Index);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FItemActionDelegate, int32, ActionIndex, int32, SlotIndex);
 
 /**
  * 
@@ -26,10 +27,10 @@ public:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	UFUNCTION()
-	void ShowWidget();
+	void ShowWidget(const FInventorySlotEntry& ItemEntry, int32 SlotIndex);
 
 	UFUNCTION()
-	void ShowEquipAction();
+	void ShowEquipSwitcherAction();
 
 	UFUNCTION()
 	void ShowUseAction();
@@ -41,7 +42,7 @@ public:
 	void HideWidget();
 
 	UFUNCTION()
-	void HideEquipAction();
+	void HideEquipSwitcherAction();
 
 	UFUNCTION()
 	void HideUseAction();
@@ -82,5 +83,8 @@ protected:
 
 	UFUNCTION()
 	void OnDropActionButtonClicked();
+
+private:
+	int32 CurrentSlotIndex;
 	
 };

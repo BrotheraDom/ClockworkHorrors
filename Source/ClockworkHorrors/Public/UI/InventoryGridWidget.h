@@ -27,6 +27,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InventoryGrid")
 	void SetInventoryMaxSlotCount(int32 NewSlotCount);
 
+	UFUNCTION(BlueprintCallable, Category = "InventoryGrid")
+	void SetInventoryMainReference(class UMainInventoryWidget* NewMainInventoryReference) { MainInventoryReference = NewMainInventoryReference; }
+
 protected:
 
 	virtual void NativePreConstruct() override;
@@ -70,7 +73,9 @@ protected:
 	bool bIsFixed = false;
 
 private:
-	TMap<FName, class UInventorySlotWidget*> ItemNameToSlotWidgetMap;
+	TMap<int32, class UInventorySlotWidget*> ItemNameToSlotWidgetMap;
+
+	class UMainInventoryWidget* MainInventoryReference;
 
 	bool IsSlotIndexValid(int32 SlotIndex) const;
 
