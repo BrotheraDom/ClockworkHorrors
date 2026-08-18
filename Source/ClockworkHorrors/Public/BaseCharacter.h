@@ -65,6 +65,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
     ABaseWeapon* weapon;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+    bool bHasWeapon = false;
+
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
     bool bIsDead = false;
@@ -89,9 +92,6 @@ protected:
 
     UPROPERTY(Transient, BlueprintReadOnly, Category = "Animation")
     TObjectPtr<UCharacterAnimationComponent> CharacterAnimationComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
-    bool bHasWeapon = false;
 
     // Components
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
