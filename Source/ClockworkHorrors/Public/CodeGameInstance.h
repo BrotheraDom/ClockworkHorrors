@@ -52,17 +52,17 @@ public:
 
 	UFUNCTION()
 	void SetMasterVolume(float Value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	float GetMasterVolume() const { return MasterVolume; }
 
 	UFUNCTION()
 	void SetSfxVolume(float Value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	float GetSfxVolume() const { return SfxVolume; }
 
 	UFUNCTION()
 	void SetMusicVolume(float Value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	float GetMusicVolume() const { return MusicVolume; }
 
 };
