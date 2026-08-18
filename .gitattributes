@@ -1,0 +1,104 @@
+# -----------------------------
+# Unreal Engine – Git LFS Rules
+# -----------------------------
+
+# Core Unreal asset types
+*.uasset filter=lfs diff=lfs merge=lfs
+*.umap   filter=lfs diff=lfs merge=lfs
+
+# Common binary formats used in UE projects
+*.png    filter=lfs diff=lfs merge=lfs
+*.jpg    filter=lfs diff=lfs merge=lfs
+*.jpeg   filter=lfs diff=lfs merge=lfs
+*.bmp    filter=lfs diff=lfs merge=lfs
+*.tga    filter=lfs diff=lfs merge=lfs
+*.exr    filter=lfs diff=lfs merge=lfs
+*.psd    filter=lfs diff=lfs merge=lfs
+*.wav    filter=lfs diff=lfs merge=lfs
+*.mp3    filter=lfs diff=lfs merge=lfs
+*.ogg    filter=lfs diff=lfs merge=lfs
+*.mp4    filter=lfs diff=lfs merge=lfs
+*.mov    filter=lfs diff=lfs merge=lfs
+
+# Meshes / Models
+*.fbx    filter=lfs diff=lfs merge=lfs
+*.obj    filter=lfs diff=lfs merge=lfs
+*.3ds    filter=lfs diff=lfs merge=lfs
+
+# Materials / Shaders / Textures
+*.dds    filter=lfs diff=lfs merge=lfs
+*.hdr    filter=lfs diff=lfs merge=lfs
+
+# Animation
+*.abc    filter=lfs diff=lfs merge=lfs
+
+# -----------------------------
+# Unreal Project Directories
+# -----------------------------
+
+# Entire Content folder should use LFS
+Content/** filter=lfs diff=lfs merge=lfs
+
+# Plugins may contain assets
+Plugins/** filter=lfs diff=lfs merge=lfs
+
+# Config files should NOT use LFS
+Config/* text eol=lf
+
+# Source code should NOT use LFS
+Source/* text eol=lf
+
+# -----------------------------
+# Engine-Specific Binary Files
+# -----------------------------
+
+# Engine assets (if included)
+Engine/Content/** filter=lfs diff=lfs merge=lfs
+
+# Engine plugins
+Engine/Plugins/** filter=lfs diff=lfs merge=lfs
+
+# -----------------------------
+# Text File Normalization
+# -----------------------------
+
+*.cpp     text eol=lf
+*.h       text eol=lf
+*.hpp     text eol=lf
+*.c       text eol=lf
+*.cs      text eol=lf
+*.ini     text eol=lf
+*.txt     text eol=lf
+*.json    text eol=lf
+*.xml     text eol=lf
+*.py      text eol=lf
+*.md      text eol=lf
+
+# -----------------------------
+# Prevent LFS on build artifacts
+# -----------------------------
+
+# Binaries
+Binaries/** -filter -diff -merge
+
+# Intermediate
+Intermediate/** -filter -diff -merge
+
+# Derived Data Cache
+DerivedDataCache/** -filter -diff -merge
+
+# Saved
+Saved/** -filter -diff -merge
+
+# -----------------------------
+# Project-Specific Directories
+# -----------------------------
+
+WeShipEventually/Content/** filter=lfs diff=lfs merge=lfs
+WeShipEventually/Plugins/** filter=lfs diff=lfs merge=lfs
+
+# Build artifacts should NOT be LFS
+WeShipEventually/Binaries/** -filter -diff -merge
+WeShipEventually/Intermediate/** -filter -diff -merge
+WeShipEventually/DerivedDataCache/** -filter -diff -merge
+WeShipEventually/Saved/** -filter -diff -merge

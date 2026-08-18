@@ -1,0 +1,234 @@
+// Copyright Aluminati Studios Publishing 2026. All Rights Reserved.
+
+
+#include "Utils/InventoryComponent.h"
+#include "Utils/InventoryItemDataAsset.h"
+
+// Sets default values for this component's properties
+UInventoryComponent::UInventoryComponent()
+{
+	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
+	// off to improve performance if you don't need them.
+	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
+
+	// ...
+
+	MaxSlots = 10; // Default maximum number of slots in the inventory
+	CurrentAvailableSlots = MaxSlots; // Initialize current available slots to maximum
+	InventoryItems = TArray<FInventorySlotEntry>(); // Initialize the inventory items array
+}
+
+
+// Called when the game starts
+void UInventoryComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	InventoryItems.SetNum(MaxSlots); // Initialize the inventory items array with the maximum number of slots
+	CurrentAvailableSlots = MaxSlots; // Reset current available slots to maximum
+
+	//UE_LOG(LogTemp, Warning, TEXT("Inventory Component Initialized with Max slots: %d and Current Available Slots: %d. TRUE InventoryItems reserved: %d"), MaxSlots, CurrentAvailableSlots, InventoryItems.Max());
+
+	//ShowInventory();
+
+	// Wait for the game to start before initializing the inventory
+	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("Inventory Component Initialized with Max slots: %d and Current Available Slots: %d. TRUE InventoryItems reserved: %d"), MaxSlots, CurrentAvailableSlots, InventoryItems.Max());
+		OnInventorySizeIncreased.Broadcast(MaxSlots);
+		});
+
+	// ...
+	
+}
+
+
+// Called every frame
+void UInventoryComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// ...
+}
+
+bool UInventoryComponent::AddItem(UInventoryItemDataAsset* Item)
+{
+	if (CurrentAvailableSlots <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Inventory is full! Cannot add item: %s"), *Item->ItemName.ToString());
+		return false; // No available slots to add items
+	}
+
+	//UE_LOG(Game, Log, TEXT("UInventoryComponent::AddItemToInventory CURRENT INVENTORY SLOTS AVAILABLE: %d"), CurrentInventorySlotAvailable);
+
+	//Does the item already exist in the inventory?
+	int32 Index = FindItemByName(Item->ItemName);
+	// is the index valid? (Item Already Exist) AND is the item not equippable?
+	if (Index != INDEX_NONE && !Item->bIsEquippable)
+	{
+		// If the item already exists in the inventory, just increase the quantity
+		InventoryItems[Index].Quantity += Item->Quantity;
+		//UE_LOG(Game, Error, TEXT("UInventoryComponent: Adding Quantity to Existing Item: %s, New Quantity: %d"), *ItemData.ItemName.ToString(), ItemData.Quantity);
+		OnItemDataAdded.Broadcast(InventoryItems[Index], Index, false); // This is to notify the UI that an item quantity has been updated
+		return true;
+	}
+
+	// The item does not exist in the inventory or is equippable, so we need to add it as a new item
+	int32 index = GetFirstAvailableSlot();
+	if (index != -1)
+	{
+		InventoryItems[index] = FInventorySlotEntry();
+		InventoryItems[index].ItemData = Item;
+		InventoryItems[index].Quantity = Item->Quantity; // Set the quantity to the item's quantity
+
+		CurrentAvailableSlots--;
+		//UE_LOG(Game, Error, TEXT("UInventoryComponent: BROADCASTING Adding New Item: %s, Quantity: %d, Slot Index: %d"), *InventoryItemsData[index].ItemName.ToString(), InventoryItemsData[index].Quantity, index);
+		OnItemDataAdded.Broadcast(InventoryItems[index], index, false); // This is to notify the UI that a new item has been added
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent: No available slot to add: %s"), *Item->ItemName.ToString());
+		return false; // No available slot to add the item
+	}
+
+	ShowInventory(); // Comment this out if you don't want to log the inventory after every addition
+
+	return true;
+}
+
+void UInventoryComponent::RemoveItemsByAmount(FName ItemName, int32 Quantity)
+{
+	int32 TotalQuantity = Quantity;
+	do // Loops through the inventory to remove the requested quantity, even if it spans multiple slots
+	{
+		int32 Index = FindItemByName(ItemName);
+
+		// If the item exists in the inventory
+		if (Index != INDEX_NONE)
+		{
+			// check if we have enough quantity to remove in a single slot
+			if (InventoryItems[Index].Quantity >= TotalQuantity)
+			{
+				InventoryItems[Index].Quantity -= TotalQuantity;
+				OnItemRemoved.Broadcast(ItemName, TotalQuantity, Index); // This is to notfy the UI that an item has been removed
+				TotalQuantity = 0; // Set to zero since we have removed the requested quantity
+				//UE_LOG(Game, Warning, TEXT("UInventoryComponent: Removed Item: %s, Quantity: %d, Slot Index: %d"), *ItemName.ToString(), Quantity, Index);
+			}
+			// Not enough quantity to remove from a single slot, set this slot to zero
+			else
+			{
+				//UE_LOG(Game, Warning, TEXT("Not enough quantity to remove! Setting to zero."));
+				TotalQuantity -= InventoryItems[Index].Quantity; // Decrease the total quantity by the amount removed
+				OnItemRemoved.Broadcast(ItemName, InventoryItems[Index].Quantity, Index); // This is to notfy the UI that an item has been removed
+				InventoryItems[Index].Quantity = 0; // Set to zero if trying to remove more than available
+
+			}
+
+
+			// Checks to see if the item quantity is zero or less after removal
+			if (InventoryItems[Index].Quantity <= 0)
+			{
+				// Remove item if quantity is zero or less
+				InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
+				CurrentAvailableSlots++;
+			}
+		}
+		else
+		{
+			//UE_LOG(Game, Warning, TEXT("Item not found in inventory!"));
+			return; // Exit if item not found
+		}
+
+		//UE_LOG(Game, Error, TEXT("UInventoryComponent: Total Quantity Remaining: %d"), TotalQuantity);
+	} while (TotalQuantity > 0); // Continue removing until all requested quantity is removed
+
+	ShowInventory();
+}
+
+void UInventoryComponent::RemoveItemByName(FName ItemName)
+{
+	int32 Index = FindItemByName(ItemName);
+
+	// If the item exists in the inventory
+	if (Index != INDEX_NONE)
+	{
+		InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
+		CurrentAvailableSlots++;
+		//ShowInventory();
+	}
+	else
+	{
+		//UE_LOG(Game, Warning, TEXT("Item not found in inventory!"));
+		return; // Exit if item not found
+	}
+}
+
+bool UInventoryComponent::HasItem(FName ItemName) const
+{
+	return false;
+}
+
+FInventorySlotEntry UInventoryComponent::GetItem(FName ItemName) const
+{
+	int32 ItemIndex = FindItemByName(ItemName);
+	if(ItemIndex != INDEX_NONE)
+	{
+		return InventoryItems[ItemIndex];
+	}
+	return FInventorySlotEntry(); // Return an invalid entry if the item is not found
+}
+
+void UInventoryComponent::ShowInventory() const
+{
+	for(int i = 0; i < InventoryItems.Num(); i++)
+	{
+		if(InventoryItems[i].IsValidEntry())
+		{
+			UE_LOG(LogTemp, Log, TEXT("Slot %d: Item Name: %s, Quantity: %d"), i, *InventoryItems[i].GetItemDataName().ToString(), InventoryItems[i].Quantity);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("Slot %d: Empty"), i);
+		}
+	}
+}
+
+void UInventoryComponent::ClearInventory()
+{
+}
+
+int32 UInventoryComponent::GetFirstAvailableSlot() const
+{
+	for (int32 i = 0; i < InventoryItems.Num(); i++)
+	{
+		if (!InventoryItems[i].IsValidEntry())
+		{
+			return i; // Return the index of the first available slot
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("Slot %d is occupied by item: %s"), i+1, *InventoryItems[i].GetItemDataName().ToString());
+		}
+	}
+
+	return INDEX_NONE; // No available slot found
+}
+
+int32 UInventoryComponent::FindItemByName(FName ItemName) const
+{
+	for(int i = 0; i < InventoryItems.Num(); i++)
+	{
+		if(InventoryItems[i].GetItemDataName() == ItemName)
+		{
+			return i; // Return the index of the item if found
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+void UInventoryComponent::OnInteract()
+{
+}
+

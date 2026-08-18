@@ -1,0 +1,109 @@
+# Project Saved & Local
+Saved/
+LocalBuilds/
+
+# Visual Studio / C# / .NET
+*.csproj.*
+.vs/
+*.pdb
+*.suo
+*.opensdf
+*.sdf
+*.tmp
+*.mdb
+*/obj/*
+*.vcxproj
+*.sln
+*-Debug.*
+*.csprojAssemblyReference.cache
+
+# Xcode / Mac
+*.xcworkspace
+*.xcodeproj
+.DS_Store
+
+# Make/CMake
+Makefile
+CMakeLists.txt
+
+# Unreal Engine Dependencies
+.ue4dependencies
+Samples/
+FeaturePacks/
+Engine/Documentation/
+
+# Git internals
+.git/
+
+# Linux Debug Files
+*.sym
+*.debug
+
+# Engine Intermediates
+Engine/Intermediate/
+Intermediate/
+
+# Intermediate folders for programs
+Engine/Programs/*/Intermediate/
+
+# Intermediate folders created for various C# programs
+Engine/Source/Programs/*/obj/
+
+# Saved folders for programs
+Engine/Programs/*/Saved/
+Engine/Programs/UnrealBuildTool/
+
+# Derived Data Cache
+Engine/DerivedDataCache/
+
+# Build receipts
+Engine/Build/Receipts/
+
+# Personal workspace vars
+p4config.txt
+
+# Unix backup files
+*~
+
+# Crash reports
+crashinfo--*
+
+# Linux project files
+*.user
+*.pro
+*.pri
+*.kdev4
+
+# Obj-C / Swift
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Documentation generated for C# tools
+Engine/Binaries/DotNET/UnrealBuildTool.xml
+Engine/Binaries/DotNET/AutomationScripts/BuildGraph.Automation.xml
+
+# Version files created by UBT
+Engine/Binaries/**/*.version
+
+# EXP files (not source)
+Engine/Binaries/**/*.exp
+
+# Swarm local save files
+Engine/Binaries/DotNET/SwarmAgent.DeveloperOptions.xml
+Engine/Binaries/DotNET/SwarmAgent.Options.xml
+
+# Intermediary Files
+*.target.xml
+*.exe.config
+*.exe.manifest
+
+# Project-specific files
+WeShipEventually/Build/
+WeShipEventually/DerivedDataCache/
+WeShipEventually/Binaries/
+WeShipEventually/Intermediate/
+
+# Project asset folder
+WeShipEventually/Content/xADG/Assets/*
