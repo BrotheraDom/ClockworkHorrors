@@ -35,7 +35,7 @@ void UMainInventoryWidget::ShowInventory(bool bInventoryShown)
 
 		if (GameInstance)
 		{
-			UE_LOG(LogTemp, Log, TEXT("UMainInventoryWidget::ShowInventory GameInstance found: %s"), *GameInstance->GetName());
+			//UE_LOG(LogTemp, Log, TEXT("UMainInventoryWidget::ShowInventory GameInstance found: %s"), *GameInstance->GetName());
 			APlayerController* const PC = GameInstance ? GameInstance->GetFirstLocalPlayerController() : nullptr;
 			if(!PC)
 			{
@@ -106,7 +106,7 @@ void UMainInventoryWidget::UpdateInventoryUI(const FInventorySlotEntry& ItemEntr
 {
 	if(InventoryGrid)
 	{
-		//UE_LOG(LogTemp, Log, TEXT("Updating Inventory UI for Item: %s at Slot Index: %d"), *ItemEntry.GetItemDataName().ToString(), SlotIndex);
+		UE_LOG(LogTemp, Log, TEXT("Updating Inventory UI for Item: %s at Slot Index: %d"), *ItemEntry.GetItemDataName().ToString(), SlotIndex);
 		InventoryGrid->AddItemDataToSlot(ItemEntry, SlotIndex, ItemSwaped);
 	}
 	else
