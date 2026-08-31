@@ -155,7 +155,7 @@ void ABasePickup::Tick(float DeltaTime)
 
 void ABasePickup::OnInteract()
 {
-	//UE_LOG(LogTemp, Warning, TEXT("Interacted with pickup: %s"), *GetName());
+	UE_LOG(LogTemp, Warning, TEXT("Interacted with pickup: %s"), *GetName());
 	ABaseCharacter* Player = Cast<ABaseCharacter>(GetWorld()->GetFirstPlayerController()->GetPawn());
 	if (!Player)
 	{
@@ -176,7 +176,7 @@ void ABasePickup::OnInteract()
 			{
 				Inventory->OnWeaponPickedUp.Broadcast();
 			}
-			//UE_LOG(LogTemp, Warning, TEXT("Picked up item: %s"), *ItemDataAsset->ItemName.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("Picked up item: %s"), *ItemDataAsset->ItemName.ToString());
 			Destroy();
 		}
 		else

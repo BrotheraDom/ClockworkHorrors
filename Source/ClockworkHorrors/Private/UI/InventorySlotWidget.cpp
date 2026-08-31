@@ -42,7 +42,7 @@ void UInventorySlotWidget::AddItemDataToSlot(const FInventorySlotEntry& ItemData
 		UE_LOG(LogTemp, Warning, TEXT("UInventorySlotWidget::AddItemDataToSlot: Attempted to add invalid item data to slot"));
 		return;
 	}
-	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::AddItemDataToSlot: ADDING NEW item %s to slot"), *ItemData.GetItemDataName().ToString());
+	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::AddItemDataToSlot: Adding item %s to slot"), *ItemData.GetItemDataName().ToString());
 	ItemSlotData = ItemData;
 	UpdateSlotUI();
 }
@@ -54,14 +54,14 @@ void UInventorySlotWidget::AddQuantityToSlot(int32 QuantityToAdd)
 		UE_LOG(LogTemp, Warning, TEXT("UInventorySlotWidget::AddQuantityToSlot: Attempted to add quantity to an invalid slot"));
 		return;
 	}
-	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::AddQuantityToSlot: INCREASING quantity %d to item %s in slot"), QuantityToAdd, *ItemSlotData.GetItemDataName().ToString());
+	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::AddQuantityToSlot: Adding quantity %d to item %s in slot"), QuantityToAdd, *ItemSlotData.GetItemDataName().ToString());
 	ItemSlotData.Quantity += QuantityToAdd;
 	UpdateSlotUI();
 }
 
 void UInventorySlotWidget::ClearSlot()
 {
-	//UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::ClearSlot: Clearing slot for item %s"), *ItemSlotData.GetItemDataName().ToString());
+	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::ClearSlot: Clearing slot for item %s"), *ItemSlotData.GetItemDataName().ToString());
 	ItemSlotData = FInventorySlotEntry();
 	UpdateSlotUI();
 }
@@ -72,15 +72,15 @@ void UInventorySlotWidget::UpdateSlotUI()
 	{
 		return;
 	}
-	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::UpdateSlotUI: UPDATING UI SLOT for item %s with quantity %d"), *ItemSlotData.GetItemDataName().ToString(), ItemSlotData.Quantity);
+	UE_LOG(LogTemp, Log, TEXT("UInventorySlotWidget::UpdateSlotUI: Updating slot UI for item %s with quantity %d"), *ItemSlotData.GetItemDataName().ToString(), ItemSlotData.Quantity);
 	if(ItemSlotData.ItemData->Icon == nullptr)
 	{
 		UE_LOG(LogTemp, Error, TEXT("UInventorySlotWidget::UpdateSlotUI: Item %s has no icon!"), *ItemSlotData.GetItemDataName().ToString());
 		return;
 	}
 
-	/*UE_LOG(LogTemp, Warning, TEXT("Stored ItemData: %s"),
-		*GetNameSafe(ItemSlotData.ItemData));*/
+	UE_LOG(LogTemp, Warning, TEXT("Stored ItemData: %s"),
+		*GetNameSafe(ItemSlotData.ItemData));
 
 	ItemIcon->SetBrushFromTexture(ItemSlotData.ItemData->Icon);
 	ItemQuantityText->SetText(FText::AsNumber(ItemSlotData.Quantity));

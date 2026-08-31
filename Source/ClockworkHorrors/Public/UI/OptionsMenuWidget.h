@@ -30,9 +30,6 @@ protected:
 	void OnBackButtonClicked();
 
 	UFUNCTION()
-	void OnSaveButtonClicked();
-
-	UFUNCTION()
 	void OnMasterVolumeChanged(float Value);
 
 	UFUNCTION()
@@ -45,9 +42,6 @@ protected:
 	class UButtonWithText* Back_Button;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	class UButtonWithText* Save_Button;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	class USlider* MasterVol_Slider;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -55,9 +49,5 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	class USlider* MusicVol_Slider;
-
-	float MasterVolumetemp;
-	float SfxVolumetemp;
-	float MusicVolumetemp;
 	
 };

@@ -16,12 +16,4 @@ class CLOCKWORKHORRORS_API ALavaDamageArea : public ADamageAreaBase
 
 public:
 	ALavaDamageArea();
-
-	void BeginPlay() override;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
-	class UAudioComponent* LavaSound;
-
-	UFUNCTION()
-	void AudioChanged(float Master, float SFX, float Mus);
 };

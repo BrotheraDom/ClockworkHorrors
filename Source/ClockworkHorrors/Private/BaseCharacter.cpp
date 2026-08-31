@@ -3,6 +3,7 @@
 #include "BaseCharacter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Misc/Optional.h"
+#include "RiflePickup.h"
 #include "BasePickup.h"
 #include "Components/SphereComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -35,7 +36,7 @@
 #include "UI/GameOverWidget.h"
 #include "UI/OptionsMenuWidget.h"
 #include "UI/MainInventoryWidget.h"
-#include "Components/CharacterAnimationComponent.h"
+#include "PlayerAnimation.h"
 #include <WeaponPickup.h>
 
 ABaseCharacter::ABaseCharacter()
@@ -46,7 +47,7 @@ ABaseCharacter::ABaseCharacter()
 
 	RifleMesh->SetupAttachment(GetMesh(), TEXT("Weapon_r"));
 
-
+	
 	RifleMesh->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
 	RifleMesh->SetRelativeRotation(FRotator(90.0f, 0.0f, -90.0f));
 
@@ -69,7 +70,7 @@ void ABaseCharacter::TryPickupInteract()
 
 
 	///REMOVE THIS BLOCK OF CODE LATER, THIS IS JUST FOR TESTING INVENTORTY COMPONENT FUNCTIONALITY
-
+	
 	GetOverlappingActors(OverlappingActors, ABasePickup::StaticClass());
 
 	for (AActor* Actor : OverlappingActors)
@@ -83,73 +84,63 @@ void ABaseCharacter::TryPickupInteract()
 		BasePickup->OnInteract();
 		return;
 	}
+	
 
 
 
 
 
 
+	
+	//GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
+
+	//for (AActor* Actor : OverlappingActors)
+	//{
+	//	ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
+	//	if (baseWeapon)
+	//	{
+	//		UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
+	//			if (!BasePickup)
+	//			{
+	//				continue;
+	//			}
+	//			//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
+	//			//if (weapon)
+	//			//{
+	//			//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
+	//			//	{
+	//			//		continue;
+	//			//	}
+	//			//}
+	//		BasePickup->HandleInteractPressed();
+	//		{
+	//			if (BasePickup->ItemDataAsset->WeaponClass)
+	//			{
+	//				weaponClass = BasePickup->ItemDataAsset->WeaponClass;
+	//				weapon = Cast<ABaseWeapon>(Actor);
+	//				EquipPickupWeapon();
+	//			}
 
 
-	GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
-
-	for (AActor* Actor : OverlappingActors)
-	{
-		ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
-		if (baseWeapon)
-		{
-			if (!baseWeapon->bPickedUp)
-			{
-				UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
-				if (!BasePickup)
-				{
-					continue;
-				}
-				//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
-				//if (weapon)
-				//{
-				//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
-				//	{
-				//		continue;
-				//	}
-				//}
-				BasePickup->HandleInteractPressed();
-				InventoryComponent->AddItem(BasePickup->ItemDataAsset);
-				{
-					if (BasePickup->ItemDataAsset->WeaponClass)
-					{
-						weaponClass = BasePickup->ItemDataAsset->WeaponClass;
-						weapon = Cast<ABaseWeapon>(Actor);
-						EquipPickupWeapon();
-					}
-
-
-				}
+	//		}
 
 
 
-			}
-
-		}
-		return;
-	}
-
+	//	}
+	//	return;
+	//}
+	
 }
 void ABaseCharacter::EquipPickupWeapon()
 {
 	// THIS NEEDS TO SPAWN THE WEAPON FROM THE PICKUP'S ITEM DATA ASSET
-	bHasWeapon = true;
-	if (weapon)
-	{
-		weapon->ParentPawn = Cast<APawn>(this);
-		weapon->AttachToComponent(
-			GetMesh(),
-			FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-			weapon->WeaponSocket
-		);
-		weapon->bPickedUp = true;
-	}
-
+	/*bHasWeapon = true;
+	weapon->ParentPawn = Cast<APawn>(this);
+	weapon->AttachToComponent(
+		GetMesh(),
+		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+		weapon->WeaponSocket
+	);*/
 }
 //
 //float ABaseCharacter::ApplyDamage(float DamageAmount)
@@ -174,29 +165,14 @@ void ABaseCharacter::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("HealthComponent is missing on %s"), *GetName());
 	}
-	// Find the reusable animation component attached to this character.
-	CharacterAnimationComponent = FindComponentByClass<UCharacterAnimationComponent>();
-
-	if (CharacterAnimationComponent)
+	UAnimInstance* temp = GetMesh()->GetAnimInstance();
+	playerAnim = Cast<UPlayerAnimation>(temp);
+	if (!playerAnim)
 	{
-		CharacterAnimationComponent->OnActionAnimationEnded.AddDynamic(
-			this,
-			&ABaseCharacter::HandleActionAnimationEnded
-		);
+		Destroy();
 	}
-	else
-	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT("CharacterAnimationComponent is missing on %s"),
-			*GetName()
-		);
-	}
-
-	// Keep the existing attack delegate so any current weapon/gameplay code
-	// that broadcasts OnAttack continues to work.
 	OnAttack.AddDynamic(this, &ABaseCharacter::AttackingAnim);
+	playerAnim->OnAttackEnded.AddDynamic(this, &ABaseCharacter::AttackAnimEnded);
 	bGameOverOverlayShown = false;
 	GameOverSlateWidget.Reset();
 
@@ -217,7 +193,7 @@ void ABaseCharacter::BeginPlay()
 
 	//Find the CheckpointManager in the world
 	CheckpointManager = Cast<ACheckpointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), ACheckpointManager::StaticClass()));
-	if (!CheckpointManager)
+	if(!CheckpointManager)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CheckpointManager not found in the world!"));
 	}
@@ -227,7 +203,7 @@ void ABaseCharacter::BeginPlay()
 		InventoryComponent->OnWeaponPickedUp.AddDynamic(this, &ABaseCharacter::EquipPickupWeapon);
 	}
 
-
+	
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
 	if (PlayerController)
 	{
@@ -247,7 +223,7 @@ void ABaseCharacter::BeginPlay()
 			}
 		}
 	}
-
+	
 
 }
 
@@ -307,7 +283,7 @@ void ABaseCharacter::HandleDeath()
 	bIsDead = true;
 
 	UE_LOG(LogTemp, Warning, TEXT("%s died."), *GetName());
-
+	
 	if (GetCharacterMovement())
 	{
 		GetCharacterMovement()->StopMovementImmediately();
@@ -498,7 +474,7 @@ void ABaseCharacter::HandlePausePressed()
 		PauseMenuWidget = CreateWidget<UPauseMenuWidget>(GetWorld(), PauseMenuClass);
 		PauseMenuWidget->AddToViewport(2);
 	}
-
+	
 
 	if (!PauseMenuWidget)
 	{
@@ -524,37 +500,7 @@ void ABaseCharacter::HandlePausePressed()
 
 void ABaseCharacter::AttackingAnim()
 {
-	if (!CharacterAnimationComponent)
-	{
-		if (weapon)
-		{
-			weapon->ActionStopped();
-		}
-		return;
-	}
-
-	const bool bPlayedAnimation =
-		CharacterAnimationComponent->PlayActionAnimation(
-			ECharacterActionAnimationType::Attack
-		);
-
-	// If this character has no Attack animation assigned, do not leave
-	// the weapon waiting for an animation-end callback that will never fire.
-	if (!bPlayedAnimation && weapon)
-	{
-		weapon->ActionStopped();
-	}
-}
-
-void ABaseCharacter::HandleActionAnimationEnded(
-	ECharacterActionAnimationType AnimationType,
-	bool bInterrupted
-)
-{
-	if (AnimationType == ECharacterActionAnimationType::Attack)
-	{
-		AttackAnimEnded();
-	}
+	playerAnim->SwingingAnimation();
 }
 
 void ABaseCharacter::AttackAnimEnded()
@@ -575,7 +521,7 @@ void ABaseCharacter::ResumeGame() {
 		return;
 	}
 
-
+	
 	PlayerController->SetPause(false);
 
 	if (PauseMenuWidget)
@@ -646,7 +592,7 @@ void ABaseCharacter::PreviousMenu()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No menu to go back to."));
 	}
-
+	
 }
 
 void ABaseCharacter::ShowPauseOverlay()
@@ -1135,13 +1081,13 @@ void ABaseCharacter::InventoryHUD()
 
 float ABaseCharacter::GetHealthPercent() const
 {
-	if (!HealthComponent)
+	if(!HealthComponent)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("HealthComponent is null in GetHealthPercent()"));
 		return 0.0f;
 	}
 
-	if (HealthComponent->GetMaxHealth() <= 0.0f)
+	if(HealthComponent->GetMaxHealth() <= 0.0f)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("MaxHealth is zero or negative in GetHealthPercent()"));
 		return 0.0f;
@@ -1158,7 +1104,7 @@ float ABaseCharacter::GetHealthPercent() const
 
 FText ABaseCharacter::GetHealthText() const
 {
-	if (!HealthComponent)
+	if(!HealthComponent)
 	{
 		return FText::FromString(TEXT("Health Component not found"));
 	}
@@ -1341,7 +1287,7 @@ void ABaseCharacter::RestartLevel()
 
 void ABaseCharacter::Respawn()
 {
-	if (!CheckpointManager)
+	if(!CheckpointManager)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CheckpointManager is null in Respawn()"));
 		return;
@@ -1382,7 +1328,7 @@ void ABaseCharacter::Attack()
 	if (bHasWeapon)
 	{
 		weapon->Attack();
-
+		
 	}
 }
 void ABaseCharacter::Reload()

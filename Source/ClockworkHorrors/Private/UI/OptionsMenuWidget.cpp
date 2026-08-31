@@ -47,15 +47,6 @@ void UOptionsMenuWidget::NativeConstruct()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("MusicVol_Slider is not bound"));
 	}
-
-	if (Save_Button)
-	{
-		Save_Button->InternalButtonClicked.AddDynamic(this, &UOptionsMenuWidget::OnSaveButtonClicked);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Save_Button is not bound"));
-	}
 }
 
 void UOptionsMenuWidget::ShowOptionsMenu()
@@ -73,10 +64,6 @@ void UOptionsMenuWidget::ShowOptionsMenu()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("GameInstance is not of type UCodeGameInstance"));
 	}
-	
-	MasterVolumetemp = MasterVol_Slider->GetValue();
-	SfxVolumetemp = SFXVol_Slider->GetValue();
-	MusicVolumetemp = MusicVol_Slider->GetValue();
 
 	AddToViewport(1);
 	SetVisibility(ESlateVisibility::Visible);
@@ -99,13 +86,11 @@ void UOptionsMenuWidget::HideOptionsMenu()
 void UOptionsMenuWidget::OnBackButtonClicked()
 {
 	HideOptionsMenu();
-	UCodeGameInstance* GameInstance = Cast<UCodeGameInstance>(GetGameInstance());
-	if (GameInstance) {
-		GameInstance->SetMasterVolume(MasterVolumetemp);
-		GameInstance->SetSfxVolume(SfxVolumetemp);
-		GameInstance->SetMusicVolume(MusicVolumetemp);
+	UOptionsSaveData* SaveData = NewObject<UOptionsSaveData>();
+	if (SaveData)
+	{
+		SaveData->SaveOptionsData(MasterVol_Slider->GetValue(), SFXVol_Slider->GetValue(), MusicVol_Slider->GetValue());
 	}
-	
 	IPlayerInterface* PlayerInterface = Cast<IPlayerInterface>(GetOwningPlayerPawn());
 	if (PlayerInterface)
 	{
@@ -151,17 +136,5 @@ void UOptionsMenuWidget::OnMusicVolumeChanged(float Value)
 	if (GameInstance)
 	{
 		GameInstance->SetMusicVolume(Value);
-	}
-}
-
-void UOptionsMenuWidget::OnSaveButtonClicked()
-{
-	UOptionsSaveData* SaveData = NewObject<UOptionsSaveData>();
-	if (SaveData)
-	{
-		SaveData->SaveOptionsData(MasterVol_Slider->GetValue(), SFXVol_Slider->GetValue(), MusicVol_Slider->GetValue());
-		MasterVolumetemp = MasterVol_Slider->GetValue();
-		SfxVolumetemp = SFXVol_Slider->GetValue();
-		MusicVolumetemp = MusicVol_Slider->GetValue();
 	}
 }
