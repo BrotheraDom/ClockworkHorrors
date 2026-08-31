@@ -112,3 +112,4 @@ ClockworkHorrors/Content/xADG/Assets/*
 Binaries/
 **/Binaries/
 /Content/Companion/SparseVolumeTextures
+.github/copilot-instructions.md
