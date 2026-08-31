@@ -10,6 +10,8 @@ UInventoryItemDataAsset::UInventoryItemDataAsset() : ItemName(NAME_None), /*Slot
 	HealthRestoreAmount = 0.0f;
 	bIsCombinable = false;
 	bIsCraftingMaterial = false;
+	WeaponRef = nullptr;
+	Ammo = 0;
 	/*DurationAmount = 0.0f;
 	AttachmentData = FAttachmentData();
 	AttachmentData.Type = EAttachmentType::None;

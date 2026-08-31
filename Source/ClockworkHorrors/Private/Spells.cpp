@@ -18,6 +18,40 @@ ASpells::ASpells()
 	ProjectileGravityStrength = 0.0f;
 	ProjectileActorClass = nullptr;
 
+	bProjectilePierces = false;
+	bLimitProjectilePierces = false;
+	MaximumProjectilePierces = 3;
+	bModifyDamagePerPierce = false;
+	DamageMultiplierPerPierce = 1.0f;
+
+	bProjectileBounces = false;
+	MaximumProjectileBounces = 3;
+	ProjectileBounciness = 1.0f;
+
+	bProjectileHoming = false;
+	ProjectileHomingStrength = 5000.0f;
+	ProjectileHomingDetectionRadius = 2000.0f;
+
+	bProjectileMultishot = false;
+	ProjectileCount = 3;
+	ProjectileSpreadAngle = 20.0f;
+
+	bChargeableSpell = false;
+	MinimumChargeTimeSeconds = 0.0f;
+	MaximumChargeTimeSeconds = 2.0f;
+
+	bChargeAffectsImpactDamage = false;
+	MinimumChargeDamageMultiplier = 1.0f;
+	MaximumChargeDamageMultiplier = 2.0f;
+
+	bChargeAffectsProjectileSize = false;
+	MinimumChargeSizeMultiplier = 1.0f;
+	MaximumChargeSizeMultiplier = 2.0f;
+
+	bChargeAffectsProjectileSpeed = false;
+	MinimumChargeSpeedMultiplier = 1.0f;
+	MaximumChargeSpeedMultiplier = 1.5f;
+
 	bInflictsImpactDamage = true;
 	ImpactDamageStrength = 1.0f;
 
@@ -25,8 +59,11 @@ ASpells::ASpells()
 	ImpactHealthRestoration = 1.0f;
 
 	bCreateLingeringField = false;
+	LingeringFieldShape = ELingeringFieldShape::Sphere;
 	LingeringFieldLifetimeSeconds = 5.0f;
 	LingeringFieldRadius = 250.0f;
+	LingeringFieldSize = 500.0f;
+	LingeringFieldHeight = 100.0f;
 	LingeringPulseIntervalSeconds = 1.0f;
 
 	bLingeringFieldInflictsDamage = false;

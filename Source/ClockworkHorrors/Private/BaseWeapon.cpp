@@ -1,33 +1,42 @@
 // Copyright Aluminati Studios Publishing 2026. All Rights Reserved.
 
-
 #include "BaseWeapon.h"
-#include <WeaponPickup.h>
+
+#include "BaseCharacter.h"
+#include "Components/CharacterAnimationComponent.h"
 #include "GameFramework/Character.h"
-#include <BaseCharacter.h>
+#include "WeaponPickup.h"
 
 // Sets default values
 ABaseWeapon::ABaseWeapon()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
-	skeletalMesh = CreateDefaultSubobject< USkeletalMeshComponent>("skeletalMesh");
+
+	skeletalMesh =
+		CreateDefaultSubobject<USkeletalMeshComponent>("skeletalMesh");
+
 	SetRootComponent(skeletalMesh);
 	skeletalMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 	ActionHappening = false;
 	Alive = true;
-	//weaponPickup = CreateDefaultSubobject<UWeaponPickup>("weaponPickup");
+
+	AnimationStance = ECharacterAnimationStance::Unarmed;
 }
 
 // Called when the game starts or when spawned
 void ABaseWeapon::BeginPlay()
 {
 	Super::BeginPlay();
+
 	UWeaponPickup* WeaponPickup = FindComponentByClass<UWeaponPickup>();
 
 	if (IsValid(WeaponPickup))
 	{
-		WeaponPickup->OnWeaponEquippedStateChanged.AddDynamic(this, &ABaseWeapon::HandleWeaponEquippedStateChanged);
+		WeaponPickup->OnWeaponEquippedStateChanged.AddDynamic(
+			this,
+			&ABaseWeapon::HandleWeaponEquippedStateChanged
+		);
 	}
 }
 
@@ -77,15 +86,49 @@ void ABaseWeapon::OwnerDied()
 
 void ABaseWeapon::HandleWeaponEquippedStateChanged(bool bWeaponEquipped)
 {
-	if (!ParentPawn)
-	{
-		UWeaponPickup* Pickup = FindComponentByClass<UWeaponPickup>();
+	UWeaponPickup* Pickup = FindComponentByClass<UWeaponPickup>();
 
-		if (IsValid(Pickup) && Pickup->IsEquipped())
+	// Cache the holder while the pickup still knows who owns it.
+	if (bWeaponEquipped && IsValid(Pickup))
+	{
+		if (ACharacter* EquippedHolder = Pickup->GetEquippedHolder())
 		{
-			ParentPawn = Pickup->GetEquippedHolder();
+			ParentPawn = EquippedHolder;
 		}
 	}
-	ABaseCharacter* player = Cast<ABaseCharacter>(ParentPawn);
-	player->weapon = this;
+
+	if (!ParentPawn)
+	{
+		return;
+	}
+
+	// Animation stance is universal: any pawn with the reusable
+	// animation component can respond to the equipped weapon.
+	if (
+		UCharacterAnimationComponent* AnimationComponent =
+		ParentPawn->FindComponentByClass<UCharacterAnimationComponent>()
+		)
+	{
+		if (bWeaponEquipped)
+		{
+			AnimationComponent->SetAnimationStance(AnimationStance);
+		}
+		else
+		{
+			AnimationComponent->ResetAnimationStance();
+		}
+	}
+
+	// Preserve the project's existing BaseCharacter weapon pointer flow.
+	if (ABaseCharacter* Character = Cast<ABaseCharacter>(ParentPawn))
+	{
+		if (bWeaponEquipped)
+		{
+			Character->weapon = this;
+		}
+		else if (Character->weapon == this)
+		{
+			Character->weapon = nullptr;
+		}
+	}
 }

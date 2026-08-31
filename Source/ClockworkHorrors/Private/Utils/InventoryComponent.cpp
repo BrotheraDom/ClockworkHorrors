@@ -1,321 +1,486 @@
 // Copyright Aluminati Studios Publishing 2026. All Rights Reserved.
 
-
 #include "Utils/InventoryComponent.h"
-#include "Utils/InventoryItemDataAsset.h"
-#include "BasePickup.h"
 
-// Sets default values for this component's properties
+#include "BaseCharacter.h"
+#include "BasePickup.h"
+#include "BaseWeapon.h"
+#include "WeaponPickup.h"
+#include "Utils/HealthComponent.h"
+#include "Utils/InventoryItemDataAsset.h"
+
 UInventoryComponent::UInventoryComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = false;
-	PrimaryComponentTick.bStartWithTickEnabled = false;
+    PrimaryComponentTick.bCanEverTick = false;
+    PrimaryComponentTick.bStartWithTickEnabled = false;
 
-	// ...
-
-	MaxSlots = 10; // Default maximum number of slots in the inventory
-	CurrentAvailableSlots = MaxSlots; // Initialize current available slots to maximum
-	InventoryItems = TArray<FInventorySlotEntry>(); // Initialize the inventory items array
+    MaxSlots = 10;
+    CurrentAvailableSlots = MaxSlots;
 }
 
-
-// Called when the game starts
 void UInventoryComponent::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
-	InventoryItems.SetNum(MaxSlots); // Initialize the inventory items array with the maximum number of slots
-	CurrentAvailableSlots = MaxSlots; // Reset current available slots to maximum
+    InventoryItems.SetNum(MaxSlots);
+    CurrentAvailableSlots = MaxSlots;
 
-	//UE_LOG(LogTemp, Warning, TEXT("Inventory Component Initialized with Max slots: %d and Current Available Slots: %d. TRUE InventoryItems reserved: %d"), MaxSlots, CurrentAvailableSlots, InventoryItems.Max());
-
-	//ShowInventory();
-
-	// Wait for the game to start before initializing the inventory
-	GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
-	{
-		//UE_LOG(LogTemp, Warning, TEXT("Inventory Component Initialized with Max slots: %d and Current Available Slots: %d. TRUE InventoryItems reserved: %d"), MaxSlots, CurrentAvailableSlots, InventoryItems.Max());
-		OnInventorySizeIncreased.Broadcast(MaxSlots);
-		});
-
-	// ...
-	
+    GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+        {
+            OnInventorySizeIncreased.Broadcast(MaxSlots);
+        });
 }
 
-
-// Called every frame
-void UInventoryComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UInventoryComponent::TickComponent(
+    float DeltaTime,
+    ELevelTick TickType,
+    FActorComponentTickFunction* ThisTickFunction
+)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	// ...
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 bool UInventoryComponent::AddItem(UInventoryItemDataAsset* Item)
 {
-	if (CurrentAvailableSlots <= 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Inventory is full! Cannot add item: %s"), *Item->ItemName.ToString());
-		return false; // No available slots to add items
-	}
+    if (!IsValid(Item))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Cannot add a null inventory item."));
+        return false;
+    }
 
-	//UE_LOG(Game, Log, TEXT("UInventoryComponent::AddItemToInventory CURRENT INVENTORY SLOTS AVAILABLE: %d"), CurrentInventorySlotAvailable);
+    if (CurrentAvailableSlots <= 0)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("Inventory is full. Cannot add %s."),
+            *Item->ItemName.ToString()
+        );
+        return false;
+    }
 
-	//Does the item already exist in the inventory?
-	int32 Index = FindItemByName(Item->ItemName);
-	// is the index valid? (Item Already Exist) AND is the item not equippable?
-	if (Index != INDEX_NONE && !Item->bIsEquippable)
-	{
-		// If the item already exists in the inventory, just increase the quantity
-		InventoryItems[Index].Quantity += Item->Quantity;
-		//UE_LOG(Game, Error, TEXT("UInventoryComponent: Adding Quantity to Existing Item: %s, New Quantity: %d"), *ItemData.ItemName.ToString(), ItemData.Quantity);
-		OnItemDataAdded.Broadcast(InventoryItems[Index], Index, false); // This is to notify the UI that an item quantity has been updated
-		return true;
-	}
+    const int32 ExistingItemIndex = FindItemByName(Item->ItemName);
 
-	// The item does not exist in the inventory or is equippable, so we need to add it as a new item
-	int32 index = GetFirstAvailableSlot();
-	if (index != -1)
-	{
-		InventoryItems[index] = FInventorySlotEntry();
-		InventoryItems[index].ItemData = Item;
-		InventoryItems[index].Quantity = Item->Quantity; // Set the quantity to the item's quantity
+    if (ExistingItemIndex != INDEX_NONE && !Item->bIsEquippable)
+    {
+        InventoryItems[ExistingItemIndex].Quantity += Item->Quantity;
 
-		CurrentAvailableSlots--;
-		//UE_LOG(Game, Error, TEXT("UInventoryComponent: BROADCASTING Adding New Item: %s, Quantity: %d, Slot Index: %d"), *InventoryItemsData[index].ItemName.ToString(), InventoryItemsData[index].Quantity, index);
-		OnItemDataAdded.Broadcast(InventoryItems[index], index, false); // This is to notify the UI that a new item has been added
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent: No available slot to add: %s"), *Item->ItemName.ToString());
-		return false; // No available slot to add the item
-	}
+        OnItemDataAdded.Broadcast(
+            InventoryItems[ExistingItemIndex],
+            ExistingItemIndex,
+            false
+        );
 
-	ShowInventory(); // Comment this out if you don't want to log the inventory after every addition
+        return true;
+    }
 
-	return true;
+    const int32 AvailableSlotIndex = GetFirstAvailableSlot();
+
+    if (AvailableSlotIndex == INDEX_NONE)
+    {
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("No inventory slot available for %s."),
+            *Item->ItemName.ToString()
+        );
+        return false;
+    }
+
+    InventoryItems[AvailableSlotIndex] = FInventorySlotEntry();
+    InventoryItems[AvailableSlotIndex].ItemData = Item;
+    InventoryItems[AvailableSlotIndex].Quantity = Item->Quantity;
+    InventoryItems[AvailableSlotIndex].CurrentBind = AvailableSlotIndex;
+    --CurrentAvailableSlots;
+
+    OnItemDataAdded.Broadcast(
+        InventoryItems[AvailableSlotIndex],
+        AvailableSlotIndex,
+        false
+    );
+
+    return true;
 }
 
 void UInventoryComponent::RemoveItemsByAmount(FName ItemName, int32 Quantity)
 {
-	int32 TotalQuantity = Quantity;
-	do // Loops through the inventory to remove the requested quantity, even if it spans multiple slots
-	{
-		int32 Index = FindItemByName(ItemName);
+    if (Quantity <= 0)
+    {
+        return;
+    }
 
-		// If the item exists in the inventory
-		if (Index != INDEX_NONE)
-		{
-			// check if we have enough quantity to remove in a single slot
-			if (InventoryItems[Index].Quantity >= TotalQuantity)
-			{
-				InventoryItems[Index].Quantity -= TotalQuantity;
-				OnItemRemoved.Broadcast(ItemName, TotalQuantity, Index); // This is to notfy the UI that an item has been removed
-				TotalQuantity = 0; // Set to zero since we have removed the requested quantity
-				//UE_LOG(Game, Warning, TEXT("UInventoryComponent: Removed Item: %s, Quantity: %d, Slot Index: %d"), *ItemName.ToString(), Quantity, Index);
-			}
-			// Not enough quantity to remove from a single slot, set this slot to zero
-			else
-			{
-				//UE_LOG(Game, Warning, TEXT("Not enough quantity to remove! Setting to zero."));
-				TotalQuantity -= InventoryItems[Index].Quantity; // Decrease the total quantity by the amount removed
-				OnItemRemoved.Broadcast(ItemName, InventoryItems[Index].Quantity, Index); // This is to notfy the UI that an item has been removed
-				InventoryItems[Index].Quantity = 0; // Set to zero if trying to remove more than available
+    int32 RemainingQuantity = Quantity;
 
-			}
+    while (RemainingQuantity > 0)
+    {
+        const int32 ItemIndex = FindItemByName(ItemName);
 
+        if (ItemIndex == INDEX_NONE)
+        {
+            return;
+        }
 
-			// Checks to see if the item quantity is zero or less after removal
-			if (InventoryItems[Index].Quantity <= 0)
-			{
-				// Remove item if quantity is zero or less
-				InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
-				CurrentAvailableSlots++;
-			}
-		}
-		else
-		{
-			//UE_LOG(Game, Warning, TEXT("Item not found in inventory!"));
-			return; // Exit if item not found
-		}
+        FInventorySlotEntry& Entry = InventoryItems[ItemIndex];
 
-		//UE_LOG(Game, Error, TEXT("UInventoryComponent: Total Quantity Remaining: %d"), TotalQuantity);
-	} while (TotalQuantity > 0); // Continue removing until all requested quantity is removed
+        const int32 QuantityToRemove =
+            FMath::Min(Entry.Quantity, RemainingQuantity);
 
-	ShowInventory();
+        Entry.Quantity -= QuantityToRemove;
+        RemainingQuantity -= QuantityToRemove;
+
+        OnItemRemoved.Broadcast(ItemName, QuantityToRemove, ItemIndex);
+
+        if (Entry.Quantity <= 0)
+        {
+            Entry = FInventorySlotEntry();
+            ++CurrentAvailableSlots;
+        }
+    }
 }
 
 void UInventoryComponent::RemoveItemByName(FName ItemName)
 {
-	int32 Index = FindItemByName(ItemName);
+    const int32 ItemIndex = FindItemByName(ItemName);
 
-	// If the item exists in the inventory
-	if (Index != INDEX_NONE)
-	{
-		InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
-		CurrentAvailableSlots++;
-		//ShowInventory();
-	}
-	else
-	{
-		//UE_LOG(Game, Warning, TEXT("Item not found in inventory!"));
-		return; // Exit if item not found
-	}
+    if (ItemIndex != INDEX_NONE)
+    {
+        RemoveItemByIndex(ItemIndex);
+    }
 }
 
 void UInventoryComponent::RemoveItemByIndex(int32 Index)
 {
-	if (Index >= 0 && Index < InventoryItems.Num())
-	{
-		OnItemRemoved.Broadcast(InventoryItems[Index].GetItemDataName(), InventoryItems[Index].Quantity, Index); // This is to notfy the UI that an item has been removed
-		InventoryItems[Index] = FInventorySlotEntry(); // Reset the item to default state
-		CurrentAvailableSlots++;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid index for removing item from inventory!"));
-	}
+    if (!InventoryItems.IsValidIndex(Index) ||
+        !InventoryItems[Index].IsValidEntry())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid inventory removal index: %d"), Index);
+        return;
+    }
+
+    OnItemRemoved.Broadcast(
+        InventoryItems[Index].GetItemDataName(),
+        InventoryItems[Index].Quantity,
+        Index
+    );
+
+    InventoryItems[Index] = FInventorySlotEntry();
+    ++CurrentAvailableSlots;
 }
 
 bool UInventoryComponent::HasItem(FName ItemName) const
 {
-	return false;
+    return FindItemByName(ItemName) != INDEX_NONE;
 }
 
 FInventorySlotEntry UInventoryComponent::GetItem(FName ItemName) const
 {
-	int32 ItemIndex = FindItemByName(ItemName);
-	if(ItemIndex != INDEX_NONE)
-	{
-		return InventoryItems[ItemIndex];
-	}
-	return FInventorySlotEntry(); // Return an invalid entry if the item is not found
+    const int32 ItemIndex = FindItemByName(ItemName);
+
+    if (ItemIndex != INDEX_NONE)
+    {
+        return InventoryItems[ItemIndex];
+    }
+
+    return FInventorySlotEntry();
 }
 
 void UInventoryComponent::ShowInventory() const
 {
-	for(int i = 0; i < InventoryItems.Num(); i++)
-	{
-		if(InventoryItems[i].IsValidEntry())
-		{
-			UE_LOG(LogTemp, Log, TEXT("Slot %d: Item Name: %s, Quantity: %d"), i, *InventoryItems[i].GetItemDataName().ToString(), InventoryItems[i].Quantity);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("Slot %d: Empty"), i);
-		}
-	}
+    for (int32 Index = 0; Index < InventoryItems.Num(); ++Index)
+    {
+        const FInventorySlotEntry& Entry = InventoryItems[Index];
+
+        if (Entry.IsValidEntry())
+        {
+            UE_LOG(
+                LogTemp,
+                Log,
+                TEXT("Slot %d: %s, Quantity: %d"),
+                Index,
+                *Entry.GetItemDataName().ToString(),
+                Entry.Quantity
+            );
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("Slot %d: Empty"), Index);
+        }
+    }
 }
 
 void UInventoryComponent::ClearInventory()
 {
+    InventoryItems.SetNum(MaxSlots);
+    CurrentAvailableSlots = MaxSlots;
 }
 
 int32 UInventoryComponent::GetFirstAvailableSlot() const
 {
-	for (int32 i = 0; i < InventoryItems.Num(); i++)
-	{
-		if (!InventoryItems[i].IsValidEntry())
-		{
-			return i; // Return the index of the first available slot
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("Slot %d is occupied by item: %s"), i+1, *InventoryItems[i].GetItemDataName().ToString());
-		}
-	}
+    for (int32 Index = 0; Index < InventoryItems.Num(); ++Index)
+    {
+        if (!InventoryItems[Index].IsValidEntry())
+        {
+            return Index;
+        }
+    }
 
-	return INDEX_NONE; // No available slot found
+    return INDEX_NONE;
 }
 
 int32 UInventoryComponent::FindItemByName(FName ItemName) const
 {
-	for(int i = 0; i < InventoryItems.Num(); i++)
-	{
-		if(InventoryItems[i].GetItemDataName() == ItemName)
-		{
-			return i; // Return the index of the item if found
-		}
-	}
+    for (int32 Index = 0; Index < InventoryItems.Num(); ++Index)
+    {
+        if (InventoryItems[Index].IsValidEntry() &&
+            InventoryItems[Index].GetItemDataName() == ItemName)
+        {
+            return Index;
+        }
+    }
 
-	return INDEX_NONE;
+    return INDEX_NONE;
 }
 
 void UInventoryComponent::HandleSwapEvent(int32 OriginalIndex, int32 NewIndex)
 {
-	if (OriginalIndex < 0 || OriginalIndex >= InventoryItems.Num() || NewIndex < 0 || NewIndex >= InventoryItems.Num())
-	{
-		//UE_LOG(Game, Warning, TEXT("Invalid indices for swapping items! OldIndex: %d, TargetIndex: %d"), OriginalIndex, NewIndex);
-		return;
-	}
+    if (!InventoryItems.IsValidIndex(OriginalIndex) ||
+        !InventoryItems.IsValidIndex(NewIndex))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid inventory swap indices."));
+        return;
+    }
 
-	FInventorySlotEntry TempItem = InventoryItems[OriginalIndex];
-	InventoryItems[OriginalIndex] = InventoryItems[NewIndex];
-	InventoryItems[NewIndex] = TempItem;
-	//Broadcasting the new item added event
-	OnItemDataAdded.Broadcast(InventoryItems[NewIndex], NewIndex, true);
-
-	//Broadcasting the old item added event
-	OnItemDataAdded.Broadcast(InventoryItems[OriginalIndex], OriginalIndex, true);
-
-	ShowInventory(); // Comment this out if you don't want to log the inventory after every swap
+    Swap(InventoryItems[OriginalIndex], InventoryItems[NewIndex]);
+    InventoryItems[OriginalIndex].CurrentBind = OriginalIndex;
+    OnItemDataAdded.Broadcast(
+        InventoryItems[OriginalIndex],
+        OriginalIndex,
+        true
+    );
+    InventoryItems[NewIndex].CurrentBind = NewIndex;
+    OnItemDataAdded.Broadcast(
+        InventoryItems[NewIndex],
+        NewIndex,
+        true
+    );
 }
 
 void UInventoryComponent::HandleItemAction(int32 ActionIndex, int32 SlotIndex)
 {
-	if(SlotIndex == -1)
-	{UE_LOG(LogTemp, Warning, TEXT("Invalid Slot Index for Item Action!"));
-	return;
-	}
+    if (!InventoryItems.IsValidIndex(SlotIndex) ||
+        !InventoryItems[SlotIndex].IsValidEntry())
+    {
+        UE_LOG(LogTemp, Error, TEXT("Invalid Slot Index for Item Action."));
+        return;
+    }
+
+    ABaseCharacter* Player = Cast<ABaseCharacter>(GetOwner());
+
+    if (!IsValid(Player))
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("InventoryComponent owner is not an ABaseCharacter.")
+        );
+        return;
+    }
+
+    UInventoryItemDataAsset* ItemData = InventoryItems[SlotIndex].ItemData;
+
+    if (!IsValid(ItemData))
+    {
+        UE_LOG(
+            LogTemp,
+            Error,
+            TEXT("Inventory entry at %d has no valid ItemData."),
+            SlotIndex
+        );
+        return;
+    }
+
+    switch (ActionIndex)
+    {
+    case 0: // Equip
+    {
+        ABaseWeapon* Weapon = ItemData->WeaponRef;
+
+        if (!IsValid(Weapon))
+        {
+            UE_LOG(
+                LogTemp,
+                Warning,
+                TEXT("Item %s has no valid weapon reference."),
+                *ItemData->ItemName.ToString()
+            );
+            return;
+        }
+
+        UWeaponPickup* WeaponPickup =
+            Weapon->FindComponentByClass<UWeaponPickup>();
+
+        if (!IsValid(WeaponPickup))
+        {
+            UE_LOG(
+                LogTemp,
+                Error,
+                TEXT("Weapon %s has no UWeaponPickup component."),
+                *GetNameSafe(Weapon)
+            );
+            return;
+        }
+
+        const int32 WeaponSlotNumber = WeaponPickup->GetInventorySlot();
+
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT(
+                "Attempting to equip %s from inventory index %d using weapon slot %d."
+            ),
+            *GetNameSafe(Weapon),
+            SlotIndex,
+            WeaponSlotNumber
+        );
+
+        Player->EquipWeaponSlot(WeaponSlotNumber);
+
+        for (FInventorySlotEntry& Entry : InventoryItems)
+        {
+            if (Entry.IsValidEntry() &&
+                IsValid(Entry.ItemData) &&
+                IsValid(Entry.ItemData->WeaponRef))
+            {
+                Entry.bIsEquipped = false;
+                OnItemDataAdded.Broadcast(Entry, Entry.CurrentBind, true);
+            }
+        }
+
+        InventoryItems[SlotIndex].bIsEquipped = true;
+
+        OnItemDataAdded.Broadcast(
+            InventoryItems[SlotIndex],
+            SlotIndex,
+            true
+        );
+
+        break;
+    }
+
+    case 1: // Unequip
+    {
+        if (!IsValid(ItemData->WeaponRef))
+        {
+            return;
+        }
+
+        UWeaponPickup* basePickup = ItemData->WeaponRef->GetComponentByClass<UWeaponPickup>();
+        basePickup->UnequipStoredWeapon();
+
+        InventoryItems[SlotIndex].bIsEquipped = false;
+
+        OnItemDataAdded.Broadcast(
+            InventoryItems[SlotIndex],
+            SlotIndex,
+            true
+        );
+
+        break;
+    }
+
+    case 2: // Use
+    {
+        if (!ItemData->bIsHealthItem)
+        {
+            return;
+        }
+
+        UHealthComponent* HealthComponent =
+            Player->FindComponentByClass<UHealthComponent>();
+
+        if (!IsValid(HealthComponent))
+        {
+            UE_LOG(LogTemp, Error, TEXT("Player has no HealthComponent."));
+            return;
+        }
+
+        if (HealthComponent->CanHeal())
+        {
+            HealthComponent->Heal(ItemData->HealthRestoreAmount);
+
+            RemoveItemsByAmount(ItemData->ItemName, 1);
+        }
+
+        break;
+    }
+
+    case 3: // Drop
+    {
+        if (IsValid(ItemData->WeaponRef))
+        {
+            Player->DropEquippedWeapon(InventoryItems[SlotIndex]);
 
 
-	switch (ActionIndex)
-	{
-	case 0: // Equip
-	{
-		// Handle equip logic here
-		break;
-	}
-	case 1: // Unequip
-	{
-		// Handle unequip logic here
-		break;
-	}
-	case 2: // Use
-	{
-		// Handle use/health logic here
-		break;
-	}
-	case 3: // Drop
-	{
-		FActorSpawnParameters spawnParams;
-		spawnParams.Instigator = nullptr; // No instigator for the spawner itself
-		spawnParams.Owner = GetOwner(); // Set the owner to the spawner itself
+            break;
+        }
 
-		FVector SpawnLocation = GetOwner()->GetActorLocation() + FVector(0.f, 50.f, 0.f); // Spawn in front of the player
-		FRotator SpawnRotation = GetOwner()->GetActorRotation().Vector().Rotation(); // Spawn facing the player
+        if (!ItemData->BlueprintClass)
+        {
+            UE_LOG(
+                LogTemp,
+                Error,
+                TEXT("Item %s has no BlueprintClass to spawn."),
+                *ItemData->ItemName.ToString()
+            );
+            return;
+        }
 
-		ABasePickup* SpawnedItem = GetWorld()->SpawnActor<ABasePickup>(InventoryItems[SlotIndex].ItemData->BlueprintClass, SpawnLocation, SpawnRotation, spawnParams);
+        FActorSpawnParameters SpawnParameters;
+        SpawnParameters.Owner = Player;
+        SpawnParameters.Instigator = Player;
 
-		if (!SpawnedItem)
-		{
-			UE_LOG(LogTemp, Error, TEXT("ItemClass is not a valid ABasePickup!"));
-			return;
-		}
+        const FVector SpawnLocation =
+            Player->GetActorLocation() +
+            Player->GetActorForwardVector() * 50.0f;
 
-		SpawnedItem->SetItemDataAsset(InventoryItems[SlotIndex].ItemData);
+        const FRotator SpawnRotation = Player->GetActorRotation();
 
-		RemoveItemByIndex(SlotIndex);
-		break;
-	}
-	default:
-		break;
-	}
+        ABasePickup* SpawnedItem =
+            GetWorld()->SpawnActor<ABasePickup>(
+                ItemData->BlueprintClass,
+                SpawnLocation,
+                SpawnRotation,
+                SpawnParameters
+            );
+
+        if (!IsValid(SpawnedItem))
+        {
+            UE_LOG(
+                LogTemp,
+                Error,
+                TEXT("Could not spawn item from inventory index %d."),
+                SlotIndex
+            );
+            return;
+        }
+
+        SpawnedItem->SetItemDataAsset(ItemData);
+
+        RemoveItemByIndex(SlotIndex);
+        break;
+    }
+
+    default:
+        UE_LOG(
+            LogTemp,
+            Warning,
+            TEXT("Unknown inventory action index: %d"),
+            ActionIndex
+        );
+        break;
+    }
 }
 
 void UInventoryComponent::OnInteract()
 {
 }
-

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Interfaces/EnemyInterface.h"
 #include "Enemy.generated.h"
 
 
@@ -22,7 +23,7 @@ enum class EEnemyState : uint8
 
 
 UCLASS(Abstract)
-class CLOCKWORKHORRORS_API AEnemy : public ACharacter
+class CLOCKWORKHORRORS_API AEnemy : public ACharacter, public IEnemyInterface
 {
 	GENERATED_BODY()
 
@@ -38,6 +39,9 @@ public:
 	virtual void SetupPlayerInputComponent(
 		UInputComponent* PlayerInputComponent
 	) override;
+
+	UFUNCTION(BlueprintCallable, Category = "Enemy|Combat")
+	float GetExperienceReward() const { return ExperienceReward; }
 
 
 protected:
@@ -132,6 +136,13 @@ protected:
 		meta = (ClampMin = "0.0")
 	)
 	float DeathDestroyDelay = 0.0f;
+
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Enemy|Death"
+	)
+	float ExperienceReward;
 
 
 	// =========================================================
@@ -238,7 +249,15 @@ protected:
 	 * Child enemy classes should override this when they
 	 * need a different attack.
 	 */
-	virtual void PerformAttack();
+	virtual void PerformAttack() override;
+
+	UFUNCTION()
+	void HandleActionFinished();
+
+	UPROPERTY(EditDefaultsOnly)
+	FName ActionFinishedMessage;
+
+	FTimerHandle AttackResetTimerHandle;
 
 
 	// =========================================================

@@ -1,19 +1,23 @@
 // Copyright Aluminati Studios Publishing 2026. All Rights Reserved.
 
-
 #include "Checkpoints.h"
+
 #include "BaseCharacter.h"
-#include "Components/BoxComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "CheckpointManager.h"
 #include "ClockworkPlayerController.h"
+#include "Components/BoxComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include <CodeGameInstance.h>
 
 ACheckpoints::ACheckpoints()
 {
-	bIsActive = false;
-	PlayerActorToSpawn = nullptr;
-	CheckpointMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CheckpointMesh"));
-	//CheckpointCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CheckpointCollision"));
+    bIsActive = false;
+    PlayerActorToSpawn = nullptr;
+
+    CheckpointMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CheckpointMesh"));
+
+    // CheckpointCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("CheckpointCollision"));
 }
 
 void ACheckpoints::BeginPlay()
@@ -21,7 +25,14 @@ void ACheckpoints::BeginPlay()
     Super::BeginPlay();
 }
 
-void ACheckpoints::BoundOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void ACheckpoints::BoundOverlap(
+    UPrimitiveComponent* OverlappedComponent,
+    AActor* OtherActor,
+    UPrimitiveComponent* OtherComp,
+    int32 OtherBodyIndex,
+    bool bFromSweep,
+    const FHitResult& SweepResult
+)
 {
     if (OtherActor && OtherActor->IsA(ABaseCharacter::StaticClass()))
     {
@@ -31,81 +42,121 @@ void ACheckpoints::BoundOverlap(UPrimitiveComponent* OverlappedComponent, AActor
 
 void ACheckpoints::ActivateCheckpoint()
 {
-	SpawnPlayerAtCheckpoint();
+    SpawnPlayerAtCheckpoint();
 }
 
 void ACheckpoints::CheckpointReached()
 {
-    if(bIsActive)
+    if (bIsActive)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Checkpoint %s has already been reached."), *GetName());
+        UE_LOG(LogTemp, Warning,
+            TEXT("Checkpoint %s has already been reached."),
+            *GetName());
         return;
-	}
+    }
 
     bIsActive = true;
 
-	CheckpointManager->ChangeCurrentCheckpoint(this);
+    // Only transition if this specific checkpoint was configured as a level exit.
+    if (bLoadsNewLevel)
+    {
+        LoadNextLevel();
+        return;
+    }
+
+    if (CheckpointManager)
+    {
+        CheckpointManager->ChangeCurrentCheckpoint(this);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Checkpoint %s has no CheckpointManager assigned."),
+            *GetName());
+    }
 }
 
 void ACheckpoints::DeactivateCheckpoint()
 {
-    if(!bIsActive)
+    if (!bIsActive)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Checkpoint %s is not active."), *GetName());
+        UE_LOG(LogTemp, Warning,
+            TEXT("Checkpoint %s is not active."),
+            *GetName());
         return;
-	}
-	bIsActive = false;
+    }
+
+    bIsActive = false;
+}
+
+void ACheckpoints::LoadNextLevel()
+{
+    if (LevelToLoad.IsNone())
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("Checkpoint %s cannot load a level because LevelToLoad is not set."),
+            *GetName());
+        return;
+    }
+
+    UE_LOG(LogTemp, Log,
+        TEXT("Checkpoint %s loading level: %s."),
+        *GetName(),
+        *LevelToLoad.ToString());
+    UCodeGameInstance* instance = Cast<UCodeGameInstance>(GetGameInstance());
+    int index = instance->GameLevels.Find(LevelToLoad);
+    instance->LoadLevelSafe(index);
+    //UGameplayStatics::OpenLevel(this, LevelToLoad, true);
 }
 
 void ACheckpoints::SpawnPlayerAtCheckpoint()
 {
     if (!PlayerActorClass)
     {
-        UE_LOG(LogTemp, Warning, TEXT("SpawnPlayerAtCheckpoint: PlayerActorClass is null"));
+        UE_LOG(LogTemp, Warning,
+            TEXT("SpawnPlayerAtCheckpoint: PlayerActorClass is null"));
         return;
     }
 
     UWorld* World = GetWorld();
-    if (!World) return;
 
-    APlayerController* PC = World->GetFirstPlayerController();
-    if (!PC) return;
-
-    AClockworkPlayerController* ClockworkPC = Cast<AClockworkPlayerController>(PC);
-    if (!ClockworkPC) return;
-
-	UE_LOG(LogTemp, Warning, TEXT("Spawning player at checkpoint: %s"), *GetName());
-
-	ABaseCharacter* Player = Cast<ABaseCharacter>(ClockworkPC->GetPawn());
-	Player->TeleportTo(GetActorLocation(), GetActorRotation());
-    Player->Reset();
-
-    /*
-    UWorld* World = GetWorld();
-    if (!World) return;
-
-    APlayerController* PC = World->GetFirstPlayerController();
-    if (!PC) return;
-
-	AClockworkPlayerController* ClockworkPC = Cast<AClockworkPlayerController>(PC);
-	if (!ClockworkPC) return;
-
-    if (APawn* OldPawn = ClockworkPC->GetPawn())
+    if (!World)
     {
-        ClockworkPC->UnPossess();
-        OldPawn->Destroy();
+        return;
     }
 
-	UE_LOG(LogTemp, Warning, TEXT("Spawning new pawn at checkpoint: %s"), *GetName());
+    ACharacter* PlayerCharacter =
+        UGameplayStatics::GetPlayerCharacter(World, 0);
 
-    // 3. Spawn new pawn at checkpoint transform
-    FActorSpawnParameters Params;
-    Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-    APawn* NewPawn = World->SpawnActor<APawn>(PlayerActorClass, GetActorLocation(), GetActorRotation(), Params);
-    if (NewPawn)
+    if (!PlayerCharacter)
     {
-        ClockworkPC->Possess(NewPawn);
+        UE_LOG(LogTemp, Warning,
+            TEXT("CheckpointManager: No player character found."));
+        return;
     }
-    */
+
+    PlayerCharacter->TeleportTo(
+        GetActorLocation(),
+        GetActorRotation(),
+        false,
+        true
+    );
+
+    ABaseCharacter* BaseCharacter =
+        Cast<ABaseCharacter>(PlayerCharacter);
+
+    if (BaseCharacter)
+    {
+        BaseCharacter->ResetCharacterForRespawn();
+
+        PlayerCharacter->SetActorHiddenInGame(false);
+        PlayerCharacter->SetActorEnableCollision(true);
+        PlayerCharacter->SetActorTickEnabled(true);
+    }
+    else
+    {
+        PlayerCharacter->SetActorHiddenInGame(false);
+        PlayerCharacter->SetActorEnableCollision(true);
+        PlayerCharacter->SetActorTickEnabled(true);
+    }
 }

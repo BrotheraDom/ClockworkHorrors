@@ -3,79 +3,104 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "BaseWeapon.h"
+#include "Animation/CharacterAnimationSet.h"
 #include "Spells.h"
 #include "Staff.generated.h"
 
-class UStaticMeshComponent;
-class USceneComponent;
-class UWeaponPickup;
+class ACharacter;
 class ASpellProjectile;
+class USceneComponent;
+class UStaticMeshComponent;
+class UWeaponPickup;
 
 UCLASS(Blueprintable)
-class CLOCKWORKHORRORS_API AStaff : public AActor
+class CLOCKWORKHORRORS_API AStaff : public ABaseWeapon
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	AStaff();
+    AStaff();
 
-	UFUNCTION(BlueprintCallable, Category = "Staff|Casting")
-	bool AttemptSpellCast(AActor* CastingActor, FVector CastingDirection);
 
-	UFUNCTION(BlueprintPure, Category = "Staff|Casting")
-	bool IsSpellReady() const;
+    virtual void BeginPlay() override;
 
-	UFUNCTION(BlueprintPure, Category = "Staff|Spell")
-	ASpells* GetSelectedSpell() const;
+    virtual void Attack() override;
 
-	UFUNCTION(BlueprintPure, Category = "Staff|Spell")
-	int32 GetSelectedSpellSlot() const;
+    UFUNCTION(BlueprintCallable, Category = "Staff|Casting")
+    void ReleaseSpellCharge();
 
-	UFUNCTION(BlueprintCallable, Category = "Staff|Spell")
-	void SelectNextSpell();
+    UFUNCTION(BlueprintCallable, Category = "Staff|Casting")
+    bool AttemptSpellCast(AActor* CastingActor, FVector CastingDirection);
 
-	UFUNCTION(BlueprintCallable, Category = "Staff|Spell")
-	void SelectPreviousSpell();
+    UFUNCTION(BlueprintPure, Category = "Staff|Casting")
+    bool IsSpellReady() const;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Staff|Components")
-	UStaticMeshComponent* StaffAppearance;
+    UFUNCTION(BlueprintPure, Category = "Staff|Casting")
+    bool IsChargingSpell() const;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Staff|Components")
-	USceneComponent* SpellReleasePoint;
+    UFUNCTION(BlueprintPure, Category = "Staff|Casting")
+    float GetCurrentChargePercent() const;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Staff|Spell", meta = (EditFixedSize))
-	TArray<TSubclassOf<ASpells>> SpellSlots;
+    UFUNCTION(BlueprintPure, Category = "Staff|Spell")
+    ASpells* GetSelectedSpell() const;
+
+    UFUNCTION(BlueprintPure, Category = "Staff|Spell")
+    int32 GetSelectedSpellSlot() const;
+
+    UFUNCTION(BlueprintCallable, Category = "Staff|Spell")
+    void SelectNextSpell();
+
+    UFUNCTION(BlueprintCallable, Category = "Staff|Spell")
+    void SelectPreviousSpell();
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Staff|Components")
+    TObjectPtr<UStaticMeshComponent> StaffAppearance;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Staff|Components")
+    TObjectPtr<USceneComponent> SpellReleasePoint;
+
+    UPROPERTY(
+        EditAnywhere,
+        BlueprintReadWrite,
+        Category = "Staff|Spell",
+        meta = (EditFixedSize)
+    )
+    TArray<TSubclassOf<ASpells>> SpellSlots;
 
 protected:
-	virtual void BeginPlay() override;
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "Staff|Casting")
-	void SpellCastRequested(AActor* CastingActor, FVector CastingDirection, ASpells* SelectedSpell);
+    UFUNCTION(BlueprintImplementableEvent, Category = "Staff|Casting")
+    void SpellCastRequested(
+        AActor* CastingActor,
+        FVector CastingDirection,
+        ASpells* SelectedSpell
+    );
 
 private:
-	UPROPERTY()
-	UWeaponPickup* WeaponPickup;
+    void SetupStaffInput();
+    void UpdateStaffInputConsumption();
 
-	bool bSpellReady;
-	bool bStaffInputBindingsCreated;
+    void HandleCastPressed();
+    void HandleSpellScrollUp();
+    void HandleSpellScrollDown();
 
-	int32 SelectedSpellIndex;
+    UFUNCTION()
+    void HandleStaffWeaponEquippedStateChanged(bool bWeaponEquipped);
 
-	FTimerHandle SpellRecoveryTimer;
+    bool IsStaffControlledByPlayer() const;
 
-	void SetupStaffInput();
+    bool AttemptSpellCastCharged(AActor* CastingActor, FVector CastingDirection, float ChargePercent);
 
-	void HandleCastPressed();
-	void HandleSpellScrollUp();
-	void HandleSpellScrollDown();
+    UPROPERTY()
+    TObjectPtr<UWeaponPickup> WeaponPickup = nullptr;
 
-	UFUNCTION()
-	void HandleWeaponEquippedStateChanged(bool bWeaponEquipped);
+    UPROPERTY()
+    TObjectPtr<ACharacter> AnimationHolder = nullptr;
 
-	void UpdateStaffInputConsumption();
+    TArray<float> SpellCooldownEndTimes;
 
-	bool IsStaffControlledByPlayer() const;
-
-	void FinishSpellRecovery();
+    bool bStaffInputBindingsCreated = false;
+    bool bIsCharging = false;
+    float ChargeStartTimeSeconds = 0.0f;
+    int32 SelectedSpellIndex = 0;
 };

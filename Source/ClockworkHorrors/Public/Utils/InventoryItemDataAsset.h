@@ -61,6 +61,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Values", meta = (EditCondition = "!bIsEquippable"))
 	int32 Quantity = 1;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Values", meta = (EditCondition = "!bIsEquippable"))
+	class ABaseWeapon* WeaponRef;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Values", meta = (EditCondition = "!bIsEquippable"))
+	int Ammo;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Crafting")
+	TMap<TObjectPtr<UInventoryItemDataAsset>, int32> Recipe;
 
 	/*UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Item|Values")
 	float DurationAmount = 0.0f;*/

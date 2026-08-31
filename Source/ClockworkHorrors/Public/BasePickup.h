@@ -27,7 +27,9 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	UFUNCTION(BlueprintCallable, Category = "Pickup")
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
@@ -52,6 +54,9 @@ protected:
 	class UStaticMesh* StaticMesh;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup")
 	class USkeletalMesh* SkeletalMesh;
+
+private:
+	bool bIsPickedUp = false;
 
 public:	
 	// Called every frame

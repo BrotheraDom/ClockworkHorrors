@@ -27,4 +27,7 @@ public:
 	virtual void OpenOptionsMenu() = 0;
 	virtual void PreviousMenu() = 0;
 	virtual void Respawn() = 0;
+	virtual float GetCurrentHealth() const = 0;
+	virtual void UpdateCompanionTarget(AActor* NewTarget, float damage) = 0;
+	virtual void HealPlayer(float HealAmount) = 0;
 };

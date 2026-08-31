@@ -30,6 +30,8 @@ ABasePickup::ABasePickup() : MeshType(EPickupMeshType::Static)
 	PickupRangeSphere = CreateDefaultSubobject<USphereComponent>(TEXT("PickupRangeSphere"));
 	PickupRangeSphere->SetSphereRadius(PickupRange);
 
+	bIsPickedUp = false;
+
 }
 
 void ABasePickup::BeginPlay()
@@ -45,7 +47,12 @@ void ABasePickup::BeginPlay()
 			MeshComponent->RegisterComponent();
 			MeshComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 			MeshComponent->SetStaticMesh(StaticMesh);
-			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
+			MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+			MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+			MeshComponent->SetSimulatePhysics(true);
+			MeshComponent->SetEnableGravity(true);
 
 			PickupMesh = MeshComponent;
 		}
@@ -67,7 +74,12 @@ void ABasePickup::BeginPlay()
 			MeshComponent->RegisterComponent();
 			MeshComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 			MeshComponent->SetSkeletalMesh(SkeletalMesh);
-			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			MeshComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
+			MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+			MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+			MeshComponent->SetSimulatePhysics(true);
+			MeshComponent->SetEnableGravity(true);
 
 			PickupMesh = MeshComponent;
 		}
@@ -136,10 +148,12 @@ void ABasePickup::BeginPlay()
 	}
 }
 
+#if WITH_EDITOR
 void ABasePickup::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	PickupRangeSphere->SetSphereRadius(PickupRange);
 }
+#endif
 
 void ABasePickup::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
@@ -155,7 +169,7 @@ void ABasePickup::Tick(float DeltaTime)
 
 void ABasePickup::OnInteract()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Interacted with pickup: %s"), *GetName());
+	//UE_LOG(LogTemp, Warning, TEXT("Interacted with pickup: %s"), *GetName());
 	ABaseCharacter* Player = Cast<ABaseCharacter>(GetWorld()->GetFirstPlayerController()->GetPawn());
 	if (!Player)
 	{
@@ -168,15 +182,22 @@ void ABasePickup::OnInteract()
 		return;
 	}
 
+	if(bIsPickedUp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Item already picked up: %s"), *ItemDataAsset->ItemName.ToString());
+		return;
+	}
+
 	if (UInventoryComponent* Inventory = Player->FindComponentByClass<UInventoryComponent>())
 	{
 		if (Inventory->AddItem(ItemDataAsset))
 		{
+			bIsPickedUp = true;
 			if (ItemDataAsset->bIsEquippable)
 			{
 				Inventory->OnWeaponPickedUp.Broadcast();
 			}
-			UE_LOG(LogTemp, Warning, TEXT("Picked up item: %s"), *ItemDataAsset->ItemName.ToString());
+			//UE_LOG(LogTemp, Warning, TEXT("Picked up item: %s"), *ItemDataAsset->ItemName.ToString());
 			Destroy();
 		}
 		else

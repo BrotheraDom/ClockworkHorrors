@@ -7,7 +7,6 @@
 #include "WeaponSlots.generated.h"
 
 class UWeaponPickup;
-class ACharacter;
 
 UCLASS(ClassGroup = (Weapons), meta = (BlueprintSpawnableComponent))
 class CLOCKWORKHORRORS_API UWeaponSlots : public UActorComponent
@@ -24,7 +23,7 @@ public:
 	bool EquipSlot(int32 SlotNumber);
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon Slots")
-	void DropEquippedWeapon();
+	void DropEquippedWeapon(int slot);
 
 	UFUNCTION(BlueprintPure, Category = "Weapon Slots")
 	bool HasWeaponInSlot(int32 SlotNumber) const;
@@ -49,22 +48,6 @@ private:
 	TArray<UWeaponPickup*> StoredWeaponPickups;
 
 	int32 EquippedSlotNumber;
-
-	bool bSlotInputBindingsCreated;
-
-	void SetupSlotInput();
-
-	void HandleSlotOnePressed();
-	void HandleSlotTwoPressed();
-	void HandleSlotThreePressed();
-	void HandleSlotFourPressed();
-	void HandleSlotFivePressed();
-	void HandleSlotSixPressed();
-	void HandleSlotSevenPressed();
-	void HandleSlotEightPressed();
-	void HandleSlotNinePressed();
-
-	void HandleDropPressed();
 
 	UWeaponPickup* GetWeaponPickupInSlot(int32 SlotNumber) const;
 };

@@ -8,7 +8,9 @@
 #include "NavigationSystem.h"
 #include "Engine/DamageEvents.h"
 #include "Utils/HealthComponent.h"
-
+#include "AIController.h"
+#include <BrainComponent.h>
+#include "BehaviorTree/BlackboardComponent.h"
 
 AEnemy::AEnemy()
 {
@@ -26,6 +28,8 @@ AEnemy::AEnemy()
 	{
 		MoveComp->MaxWalkSpeed = MoveSpeed;
 	}
+
+	ExperienceReward = 10.0f;
 }
 
 
@@ -62,9 +66,9 @@ void AEnemy::BeginPlay()
 	// AI
 	// ---------------------------------------------------------
 
-	AcquireTarget();
+	//AcquireTarget();
 
-	ChooseNewPatrolDestination();
+	//ChooseNewPatrolDestination();
 }
 
 
@@ -83,8 +87,8 @@ void AEnemy::Tick(float DeltaTime)
 		return;
 	}
 
-
-	UpdateState(DeltaTime);
+	AttackTimer -= DeltaTime;
+	//UpdateState(DeltaTime);
 }
 
 
@@ -475,33 +479,31 @@ void AEnemy::HandleAttack(float DeltaTime)
 
 void AEnemy::PerformAttack()
 {
+
+	UE_LOG(LogTemp,Log,TEXT("%s is performing an attack."),*GetName());
+
+	GetWorld()->GetTimerManager().SetTimer(
+		AttackResetTimerHandle,
+		this,
+		&AEnemy::HandleActionFinished,
+		AttackCooldown,
+		false
+	);
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+	UBlackboardComponent* BlackboardComp = AIController ? AIController->GetBlackboardComponent() : nullptr;
+	if (BlackboardComp) 
+	{
+		TargetActor = Cast<AActor>(BlackboardComp->GetValueAsObject("Target"));
+	}
+	//Attack logic needs to be changed because TargetActor is no longer updated now that the AI uses Blackboard and calls attack when in range of the player.
 	if (!TargetActor)
 	{
 		return;
 	}
 
 
-	ABaseCharacter* PlayerCharacter =
-		Cast<ABaseCharacter>(
-			TargetActor
-		);
-
-
-	if (!PlayerCharacter)
-	{
-		UE_LOG(
-			LogTemp,
-			Warning,
-			TEXT(
-				"%s could not cast TargetActor "
-				"to ABaseCharacter."
-			),
-			*GetName()
-		);
-
-
-		return;
-	}
+	
 
 
 	bCanDealDamage = true;
@@ -520,12 +522,37 @@ void AEnemy::PerformAttack()
 
 	// TakeDamage triggers the player's normal Unreal
 	// damage pipeline.
-	PlayerCharacter->TakeDamage(
+	TargetActor->TakeDamage(
 		AttackDamage,
 		FDamageEvent(),
 		GetController(),
 		this
 	);
+}
+
+void AEnemy::HandleActionFinished()
+{
+	UE_LOG(LogTemp, Warning, TEXT("HandleActionFinished called"));
+
+	AAIController* AIController = Cast<AAIController>(GetController());
+	if (AIController)
+	{
+		UBrainComponent* BrainComp = AIController->GetBrainComponent();
+		if (BrainComp)
+		{
+			FAIMessage Message(ActionFinishedMessage, this);
+			FAIMessage::Send(AIController, Message);
+			UE_LOG(LogTemp, Warning, TEXT("Sent ActionFinished AI message"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("BrainComponent is null"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("AIController is null"));
+	}
 }
 
 

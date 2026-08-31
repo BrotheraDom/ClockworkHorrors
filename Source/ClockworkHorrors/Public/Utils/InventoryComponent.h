@@ -93,6 +93,5 @@ public:
 
 	/// Implementing the IInteractInterface
 	void OnInteract() override;
-
-		
+	TArray<FInventorySlotEntry> GetInventory() { return InventoryItems; }
 };

@@ -6,7 +6,10 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-
+#include <WeaponPickup.h>
+#include <BaseWeapon.h>
+#include <Utils/InventoryComponent.h>
+#include "WeaponSlots.h"
 void AClockworkPlayerController::BeginPlay()
 {
     Super::BeginPlay();
@@ -26,7 +29,7 @@ void AClockworkPlayerController::BeginPlay()
 
 void AClockworkPlayerController::SetupInputComponent()
 {
-    
+
     APlayerController::SetupInputComponent();
 
     if (!InputComponent)
@@ -90,7 +93,7 @@ void AClockworkPlayerController::SetupInputComponent()
                 ETriggerEvent::Triggered,
                 this,
                 &AClockworkPlayerController::Interact
-                );
+            );
         }
         if (ComboAttackAction)
         {
@@ -98,6 +101,18 @@ void AClockworkPlayerController::SetupInputComponent()
                 ComboAttackAction,
                 ETriggerEvent::Triggered, this,
                 &AClockworkPlayerController::Attack
+            );
+
+            EnhancedInputComponent->BindAction(
+                ComboAttackAction,
+                ETriggerEvent::Completed, this,
+                &AClockworkPlayerController::StopAttack
+            );
+
+            EnhancedInputComponent->BindAction(
+                ComboAttackAction,
+                ETriggerEvent::Canceled, this,
+                &AClockworkPlayerController::StopAttack
             );
         }
         if (ReloadAction)
@@ -140,10 +155,105 @@ void AClockworkPlayerController::SetupInputComponent()
                 &AClockworkPlayerController::KillPlayer
             );
         }
+        if (WeaponSlotOneAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotOneAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot1
+            );
+        }
+        if (WeaponSlotTwoAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotTwoAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot2
+            );
+        }
+        if (WeaponSlotThreeAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotThreeAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot3
+            );
+        }
+        if (WeaponSlotFourAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotFourAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot4
+            );
+        }
+        if (WeaponSlotFiveAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotFiveAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot5
+            );
+        }
+        if (WeaponSlotSixAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotSixAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot6
+            );
+        }
+        if (WeaponSlotSevenAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotSevenAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot7
+            );
+        }
+        if (WeaponSlotEightAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotEightAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot8
+            );
+        }
+        if (WeaponSlotNineAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotNineAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot9
+            );
+        }
+        if (WeaponSlotTenAction)
+        {
+            EnhancedInputComponent->BindAction(
+                WeaponSlotTenAction,
+                ETriggerEvent::Started, this,
+                &AClockworkPlayerController::Slot10
+            );
+        }
+        if (DropWeaponAction)
+        {
+            EnhancedInputComponent->BindAction(
+                DropWeaponAction,
+                ETriggerEvent::Triggered, this,
+                &AClockworkPlayerController::DropWeapon
+            );
+        }
+        if (ClearInventoryAction)
+        {
+            EnhancedInputComponent->BindAction(
+                ClearInventoryAction,
+                ETriggerEvent::Triggered, this,
+                &AClockworkPlayerController::ClearInventory
+            );
+        }
     }
 
 
- 
 }
 
 void AClockworkPlayerController::Move(const FInputActionValue& Value)
@@ -181,21 +291,21 @@ void AClockworkPlayerController::Move(const FInputActionValue& Value)
     );
 }
 
+
 void AClockworkPlayerController::Look(const FInputActionValue& Value)
 {
     const FVector2D LookVector = Value.Get<FVector2D>();
-
-    AddYawInput(LookVector.X);
-    AddPitchInput(LookVector.Y);
+    AddYawInput(LookVector.X * LookSensitivity);
+    AddPitchInput(LookVector.Y * LookSensitivity);
 }
 
 void AClockworkPlayerController::MouseLook(const FInputActionValue& Value)
 {
     const FVector2D LookVector = Value.Get<FVector2D>();
-
-    AddYawInput(LookVector.X);
-    AddPitchInput(LookVector.Y);
+    AddYawInput(LookVector.X * MouseSensitivity);
+    AddPitchInput(LookVector.Y * MouseSensitivity);
 }
+
 
 void AClockworkPlayerController::StartJump()
 {
@@ -217,7 +327,7 @@ void AClockworkPlayerController::Interact()
 {
     if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
     {
-		PlayerCharacter->TryPickupInteract();
+        PlayerCharacter->TryPickupInteract();
     }
 }
 
@@ -236,6 +346,7 @@ void AClockworkPlayerController::HandleQuitInput()
         PlayerCharacter->QuitGameFromPause();
     }
 }
+
 void AClockworkPlayerController::Attack()
 {
     if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
@@ -243,6 +354,15 @@ void AClockworkPlayerController::Attack()
         PlayerCharacter->Attack();
     }
 }
+
+void AClockworkPlayerController::StopAttack()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->StopAttack();
+    }
+}
+
 void AClockworkPlayerController::Reload()
 {
     if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
@@ -265,5 +385,111 @@ void AClockworkPlayerController::KillPlayer()
     if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
     {
         PlayerCharacter->HandleDeath();
+    }
+}
+
+void AClockworkPlayerController::Slot1()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(1);
+    }
+}
+
+void AClockworkPlayerController::Slot2()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(2);
+    }
+}
+
+void AClockworkPlayerController::Slot3()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(3);
+    }
+}
+
+void AClockworkPlayerController::Slot4()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(4);
+    }
+}
+
+void AClockworkPlayerController::Slot5()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(5);
+    }
+}
+
+void AClockworkPlayerController::Slot6()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(6);
+    }
+}
+
+void AClockworkPlayerController::Slot7()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(7);
+    }
+}
+
+void AClockworkPlayerController::Slot8()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(8);
+    }
+}
+
+void AClockworkPlayerController::Slot9()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(9);
+    }
+}
+
+void AClockworkPlayerController::Slot10()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        PlayerCharacter->EquipWeaponSlot(10);
+    }
+}
+
+void AClockworkPlayerController::DropWeapon()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        if (PlayerCharacter->weapon)
+        {
+            UWeaponPickup* basePickup = PlayerCharacter->weapon->GetComponentByClass<UWeaponPickup>();
+            PlayerCharacter->DropEquippedWeapon(PlayerCharacter->InventoryComponent->GetItem(basePickup->ItemDataAsset->ItemName));
+        }
+
+    }
+}
+
+void AClockworkPlayerController::ClearInventory()
+{
+    if (ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(GetPawn()))
+    {
+        //PlayerCharacter->InventoryComponent->ClearInventory();
+        for (int i = 0; i < PlayerCharacter->InventoryComponent->GetInventory().Num(); i++)
+        {
+            PlayerCharacter->DropEquippedWeapon(PlayerCharacter->InventoryComponent->GetInventory()[i]);
+        }
+
     }
 }

@@ -4,9 +4,12 @@
 
 #include "SpellProjectile.h"
 #include "WeaponPickup.h"
+#include "Utils/HealthComponent.h"
 
+#include "Components/CharacterAnimationComponent.h"
 #include "Components/InputComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
@@ -39,9 +42,12 @@ AStaff::AStaff()
 	SpellSlots.SetNum(4);
 
 	WeaponPickup = nullptr;
+	AnimationHolder = nullptr;
 
-	bSpellReady = true;
+	SpellCooldownEndTimes.SetNumZeroed(4);
 	bStaffInputBindingsCreated = false;
+	bIsCharging = false;
+	ChargeStartTimeSeconds = 0.0f;
 
 	SelectedSpellIndex = 0;
 }
@@ -55,11 +61,16 @@ void AStaff::BeginPlay()
 		SpellSlots.SetNum(4);
 	}
 
+	if (SpellCooldownEndTimes.Num() != 4)
+	{
+		SpellCooldownEndTimes.SetNumZeroed(4);
+	}
+
 	WeaponPickup = FindComponentByClass<UWeaponPickup>();
 
 	if (IsValid(WeaponPickup))
 	{
-		WeaponPickup->OnWeaponEquippedStateChanged.AddDynamic(this, &AStaff::HandleWeaponEquippedStateChanged);
+		WeaponPickup->OnWeaponEquippedStateChanged.AddDynamic(this, &AStaff::HandleStaffWeaponEquippedStateChanged);
 	}
 
 	if (!SpellSlots.IsValidIndex(SelectedSpellIndex) || !SpellSlots[SelectedSpellIndex])
@@ -75,6 +86,106 @@ void AStaff::BeginPlay()
 	}
 
 	SetupStaffInput();
+}
+
+void AStaff::Attack()
+{
+	ABaseWeapon::Attack();
+
+	if (!ParentPawn)
+	{
+		return;
+	}
+
+	if (!CanAttack())
+	{
+		return;
+	}
+
+	if (!IsSpellReady())
+	{
+		return;
+	}
+
+	ASpells* SelectedSpell = GetSelectedSpell();
+
+	if (!IsValid(SelectedSpell))
+	{
+		return;
+	}
+
+	if (SelectedSpell->bChargeableSpell)
+	{
+		if (bIsCharging)
+		{
+			return;
+		}
+
+		bIsCharging = true;
+		ChargeStartTimeSeconds = GetWorld()->GetTimeSeconds();
+
+		return;
+	}
+
+	FVector CastingDirection = ParentPawn->GetActorForwardVector();
+
+	APlayerController* PlayerController = Cast<APlayerController>(ParentPawn->GetController());
+
+	if (IsValid(PlayerController))
+	{
+		CastingDirection = PlayerController->GetControlRotation().Vector();
+	}
+
+	AttemptSpellCast(ParentPawn, CastingDirection);
+}
+
+void AStaff::ReleaseSpellCharge()
+{
+	if (!bIsCharging)
+	{
+		return;
+	}
+
+	if (!ParentPawn)
+	{
+		bIsCharging = false;
+		return;
+	}
+
+	if (!CanAttack())
+	{
+		bIsCharging = false;
+		return;
+	}
+
+	if (!IsStaffControlledByPlayer())
+	{
+		bIsCharging = false;
+		return;
+	}
+
+	ASpells* SelectedSpell = GetSelectedSpell();
+
+	if (!IsValid(SelectedSpell) || !SelectedSpell->bChargeableSpell)
+	{
+		bIsCharging = false;
+		return;
+	}
+
+	const float ChargePercent = GetCurrentChargePercent();
+
+	bIsCharging = false;
+
+	FVector CastingDirection = ParentPawn->GetActorForwardVector();
+
+	APlayerController* PlayerController = Cast<APlayerController>(ParentPawn->GetController());
+
+	if (IsValid(PlayerController))
+	{
+		CastingDirection = PlayerController->GetControlRotation().Vector();
+	}
+
+	AttemptSpellCastCharged(ParentPawn, CastingDirection, ChargePercent);
 }
 
 void AStaff::SetupStaffInput()
@@ -100,10 +211,6 @@ void AStaff::SetupStaffInput()
 		UpdateStaffInputConsumption();
 		return;
 	}
-
-	FInputKeyBinding& StaffCastBinding = InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &AStaff::HandleCastPressed);
-
-	StaffCastBinding.bConsumeInput = false;
 
 	FInputKeyBinding& StaffScrollUpBinding = InputComponent->BindKey(EKeys::MouseScrollUp, IE_Pressed, this, &AStaff::HandleSpellScrollUp);
 
@@ -142,9 +249,48 @@ bool AStaff::IsStaffControlledByPlayer() const
 	return IsValid(PlayerController);
 }
 
-void AStaff::HandleWeaponEquippedStateChanged(bool bWeaponEquipped)
+void AStaff::HandleStaffWeaponEquippedStateChanged(bool bWeaponEquipped)
 {
 	UpdateStaffInputConsumption();
+
+	if (!IsValid(WeaponPickup))
+	{
+		return;
+	}
+
+	if (bWeaponEquipped)
+	{
+		AnimationHolder = WeaponPickup->GetEquippedHolder();
+	}
+	else
+	{
+		bIsCharging = false;
+	}
+
+	if (!IsValid(AnimationHolder))
+	{
+		return;
+	}
+
+	if (
+		UCharacterAnimationComponent* AnimationComponent =
+		AnimationHolder->FindComponentByClass<UCharacterAnimationComponent>()
+		)
+	{
+		//if (bWeaponEquipped)
+		//{
+		//	AnimationComponent->SetAnimationStance(AnimationStance);
+		//}
+		//else
+		//{
+		//	AnimationComponent->ResetAnimationStance();
+		//}
+	}
+
+	if (!bWeaponEquipped)
+	{
+		AnimationHolder = nullptr;
+	}
 }
 
 void AStaff::UpdateStaffInputConsumption()
@@ -158,42 +304,11 @@ void AStaff::UpdateStaffInputConsumption()
 
 	for (FInputKeyBinding& InputBinding : InputComponent->KeyBindings)
 	{
-		if (InputBinding.Chord.Key == EKeys::LeftMouseButton && InputBinding.KeyEvent == IE_Pressed)
-		{
-			InputBinding.bConsumeInput = bShouldConsumeStaffInput;
-		}
-
 		if ((InputBinding.Chord.Key == EKeys::MouseScrollUp || InputBinding.Chord.Key == EKeys::MouseScrollDown) && InputBinding.KeyEvent == IE_Pressed)
 		{
 			InputBinding.bConsumeInput = bShouldConsumeStaffInput;
 		}
 	}
-}
-
-void AStaff::HandleCastPressed()
-{
-	if (!IsStaffControlledByPlayer())
-	{
-		return;
-	}
-
-	ACharacter* StaffHolder = WeaponPickup->GetEquippedHolder();
-
-	if (!IsValid(StaffHolder))
-	{
-		return;
-	}
-
-	FVector CastingDirection = StaffHolder->GetActorForwardVector();
-
-	APlayerController* PlayerController = Cast<APlayerController>(StaffHolder->GetController());
-
-	if (IsValid(PlayerController))
-	{
-		CastingDirection = PlayerController->GetControlRotation().Vector();
-	}
-
-	AttemptSpellCast(StaffHolder, CastingDirection);
 }
 
 void AStaff::HandleSpellScrollUp()
@@ -218,17 +333,24 @@ void AStaff::HandleSpellScrollDown()
 
 bool AStaff::AttemptSpellCast(AActor* CastingActor, FVector CastingDirection)
 {
+	return AttemptSpellCastCharged(CastingActor, CastingDirection, 0.0f);
+}
+
+bool AStaff::AttemptSpellCastCharged(AActor* CastingActor, FVector CastingDirection, float ChargePercent)
+{
 	if (!IsValid(CastingActor))
 	{
 		return false;
 	}
 
-	if (!bSpellReady)
+	if (!IsSpellReady())
 	{
 		return false;
 	}
 
 	ASpells* SelectedSpell = GetSelectedSpell();
+
+	const int32 CastSpellIndex = SelectedSpellIndex;
 
 	if (!IsValid(SelectedSpell))
 	{
@@ -242,39 +364,111 @@ bool AStaff::AttemptSpellCast(AActor* CastingActor, FVector CastingDirection)
 
 	CastingDirection.Normalize();
 
-	bSpellReady = false;
+	bIsCharging = false;
+
+	ChargePercent = FMath::Clamp(ChargePercent, 0.0f, 1.0f);
 
 	SpellCastRequested(CastingActor, CastingDirection, SelectedSpell);
+
+	if (SelectedSpell->CastsOnCaster() && SelectedSpell->bRestoresImpactHealth)
+	{
+		UHealthComponent* HealthComponent = CastingActor->FindComponentByClass<UHealthComponent>();
+
+		if (IsValid(HealthComponent) && HealthComponent->CanHeal())
+		{
+			HealthComponent->Heal(SelectedSpell->ImpactHealthRestoration);
+		}
+	}
 
 	if (SelectedSpell->LaunchesProjectile() && SelectedSpell->ProjectileActorClass)
 	{
 		const FVector ProjectileSpawnLocation = SpellReleasePoint->GetComponentLocation();
 
-		const FRotator ProjectileSpawnRotation = CastingDirection.Rotation();
+		const int32 NumberOfProjectiles = SelectedSpell->bProjectileMultishot
+			? FMath::Max(SelectedSpell->ProjectileCount, 2)
+			: 1;
 
-		FActorSpawnParameters ProjectileSpawnParameters;
+		const float TotalSpread = SelectedSpell->bProjectileMultishot
+			? SelectedSpell->ProjectileSpreadAngle
+			: 0.0f;
 
-		ProjectileSpawnParameters.Owner = CastingActor;
+		const FRotator BaseProjectileSpawnRotation = CastingDirection.Rotation();
 
-		ProjectileSpawnParameters.Instigator = Cast<APawn>(CastingActor);
+		TArray<ASpellProjectile*> CreatedSpellProjectiles;
 
-		ProjectileSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		ASpellProjectile* CreatedSpellProjectile = GetWorld()->SpawnActor<ASpellProjectile>(SelectedSpell->ProjectileActorClass, ProjectileSpawnLocation, ProjectileSpawnRotation, ProjectileSpawnParameters);
-
-		if (IsValid(CreatedSpellProjectile))
+		for (int32 ProjectileIndex = 0; ProjectileIndex < NumberOfProjectiles; ProjectileIndex++)
 		{
-			CreatedSpellProjectile->InitializeProjectile(CastingActor, SelectedSpell, CastingDirection);
+			float YawOffset = 0.0f;
+
+			if (NumberOfProjectiles > 1)
+			{
+				const float SpreadPercent =
+					static_cast<float>(ProjectileIndex) /
+					static_cast<float>(NumberOfProjectiles - 1);
+
+				YawOffset = FMath::Lerp(
+					-TotalSpread * 0.5f,
+					TotalSpread * 0.5f,
+					SpreadPercent
+				);
+			}
+
+			FRotator ProjectileSpawnRotation = BaseProjectileSpawnRotation;
+			ProjectileSpawnRotation.Yaw += YawOffset;
+
+			const FVector ProjectileDirection = ProjectileSpawnRotation.Vector();
+
+			FActorSpawnParameters ProjectileSpawnParameters;
+
+			ProjectileSpawnParameters.Owner = CastingActor;
+
+			ProjectileSpawnParameters.Instigator = Cast<APawn>(CastingActor);
+
+			ProjectileSpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			ASpellProjectile* CreatedSpellProjectile = GetWorld()->SpawnActor<ASpellProjectile>(
+				SelectedSpell->ProjectileActorClass,
+				ProjectileSpawnLocation,
+				ProjectileSpawnRotation,
+				ProjectileSpawnParameters
+			);
+
+			if (IsValid(CreatedSpellProjectile))
+			{
+				CreatedSpellProjectile->InitializeProjectile(
+					CastingActor,
+					SelectedSpell,
+					ProjectileDirection,
+					ChargePercent
+				);
+
+				CreatedSpellProjectiles.Add(CreatedSpellProjectile);
+			}
+		}
+
+		for (int32 FirstProjectileIndex = 0; FirstProjectileIndex < CreatedSpellProjectiles.Num(); FirstProjectileIndex++)
+		{
+			for (int32 SecondProjectileIndex = FirstProjectileIndex + 1; SecondProjectileIndex < CreatedSpellProjectiles.Num(); SecondProjectileIndex++)
+			{
+				ASpellProjectile* FirstProjectile = CreatedSpellProjectiles[FirstProjectileIndex];
+				ASpellProjectile* SecondProjectile = CreatedSpellProjectiles[SecondProjectileIndex];
+
+				if (IsValid(FirstProjectile) && IsValid(FirstProjectile->CollisionSphere) && IsValid(SecondProjectile))
+				{
+					FirstProjectile->CollisionSphere->IgnoreActorWhenMoving(SecondProjectile, true);
+				}
+
+				if (IsValid(SecondProjectile) && IsValid(SecondProjectile->CollisionSphere) && IsValid(FirstProjectile))
+				{
+					SecondProjectile->CollisionSphere->IgnoreActorWhenMoving(FirstProjectile, true);
+				}
+			}
 		}
 	}
 
-	if (SelectedSpell->CastCooldownSeconds <= 0.0f)
+	if (SpellCooldownEndTimes.IsValidIndex(CastSpellIndex))
 	{
-		FinishSpellRecovery();
-	}
-	else
-	{
-		GetWorldTimerManager().SetTimer(SpellRecoveryTimer, this, &AStaff::FinishSpellRecovery, SelectedSpell->CastCooldownSeconds, false);
+		SpellCooldownEndTimes[CastSpellIndex] = GetWorld()->GetTimeSeconds() + FMath::Max(SelectedSpell->CastCooldownSeconds, 0.0f);
 	}
 
 	return true;
@@ -302,6 +496,11 @@ int32 AStaff::GetSelectedSpellSlot() const
 
 void AStaff::SelectNextSpell()
 {
+	if (bIsCharging)
+	{
+		return;
+	}
+
 	const int32 NumberOfSpellSlots = FMath::Min(SpellSlots.Num(), 4);
 
 	if (NumberOfSpellSlots <= 0)
@@ -324,6 +523,11 @@ void AStaff::SelectNextSpell()
 
 void AStaff::SelectPreviousSpell()
 {
+	if (bIsCharging)
+	{
+		return;
+	}
+
 	const int32 NumberOfSpellSlots = FMath::Min(SpellSlots.Num(), 4);
 
 	if (NumberOfSpellSlots <= 0)
@@ -346,10 +550,51 @@ void AStaff::SelectPreviousSpell()
 
 bool AStaff::IsSpellReady() const
 {
-	return bSpellReady;
+	if (!SpellCooldownEndTimes.IsValidIndex(SelectedSpellIndex))
+	{
+		return true;
+	}
+
+	if (!GetWorld())
+	{
+		return true;
+	}
+
+	return GetWorld()->GetTimeSeconds() >= SpellCooldownEndTimes[SelectedSpellIndex];
 }
 
-void AStaff::FinishSpellRecovery()
+bool AStaff::IsChargingSpell() const
 {
-	bSpellReady = true;
+	return bIsCharging;
+}
+
+float AStaff::GetCurrentChargePercent() const
+{
+	if (!bIsCharging)
+	{
+		return 0.0f;
+	}
+
+	ASpells* SelectedSpell = GetSelectedSpell();
+
+	if (!IsValid(SelectedSpell) || !SelectedSpell->bChargeableSpell)
+	{
+		return 0.0f;
+	}
+
+	const float MinimumChargeTime = FMath::Max(SelectedSpell->MinimumChargeTimeSeconds, 0.0f);
+	const float MaximumChargeTime = FMath::Max(SelectedSpell->MaximumChargeTimeSeconds, MinimumChargeTime);
+	const float HeldTime = FMath::Max(GetWorld()->GetTimeSeconds() - ChargeStartTimeSeconds, 0.0f);
+
+	if (MaximumChargeTime - MinimumChargeTime <= KINDA_SMALL_NUMBER)
+	{
+		return HeldTime >= MinimumChargeTime ? 1.0f : 0.0f;
+	}
+
+	return FMath::Clamp(
+		(HeldTime - MinimumChargeTime) /
+		(MaximumChargeTime - MinimumChargeTime),
+		0.0f,
+		1.0f
+	);
 }

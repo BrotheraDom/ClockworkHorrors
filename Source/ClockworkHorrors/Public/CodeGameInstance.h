@@ -9,6 +9,8 @@
 /**
  * 
  */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FDelegateAudioChanged, float, MasterVolume, float, SfxVolume, float, MusicVolume);
+
 UCLASS()
 class CLOCKWORKHORRORS_API UCodeGameInstance : public UGameInstance
 {
@@ -20,8 +22,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Variables")
 	int FirstLevelIndex;
 
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Variables")
-	TArray<FName> GameLevels;
+
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Variables")
 	int CurrentLevel;
@@ -34,6 +35,10 @@ protected:
 	float MusicVolume;
 
 public:
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Variables")
+	TArray<FName> GameLevels;
+	UPROPERTY(BlueprintAssignable, BlueprintCallable, Category = "Variables")
+	FDelegateAudioChanged OnAudioChanged;
 
 	UFUNCTION()
 	void LoadFirstLevel();
@@ -52,17 +57,17 @@ public:
 
 	UFUNCTION()
 	void SetMasterVolume(float Value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	float GetMasterVolume() const { return MasterVolume; }
 
 	UFUNCTION()
 	void SetSfxVolume(float Value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	float GetSfxVolume() const { return SfxVolume; }
 
 	UFUNCTION()
 	void SetMusicVolume(float Value);
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	float GetMusicVolume() const { return MusicVolume; }
 
 };

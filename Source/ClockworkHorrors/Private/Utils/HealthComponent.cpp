@@ -4,6 +4,11 @@
 
 #include "GameFramework/Actor.h"
 #include "TimerManager.h"
+#include "Enemy.h"
+#include "BaseCharacter.h"
+#include "Utils/ExperienceComponent.h"
+#include "Interfaces/CompanionInterface.h"
+#include "Interfaces/PlayerInterface.h"
 
 #if WITH_EDITOR
 #include "UObject/UnrealType.h"
@@ -115,6 +120,19 @@ void UHealthComponent::OnOwnerTakeAnyDamage(
 		return;
 	}
 
+	IPlayerInterface* PlayerInterface = Cast<IPlayerInterface>(DamagedActor);
+	if (PlayerInterface)
+	{
+		PlayerInterface->UpdateCompanionTarget(DamageCauser, Damage);
+	}
+	else {
+		ICompanionInterface* CompanionInterface = Cast<ICompanionInterface>(DamagedActor);
+		if (CompanionInterface)
+		{
+			CompanionInterface->UpdateTarget(DamageCauser, Damage);
+		}
+	}
+
 
 	// Damage interrupts regeneration and resets the delay.
 	StopRegeneration();
@@ -148,6 +166,25 @@ void UHealthComponent::OnOwnerTakeAnyDamage(
 	if (CurrentHealth <= 0.0f)
 	{
 		CurrentHealth = 0.0f;
+
+		///REWARD EXPERIENCE FOR PLAYER
+		APlayerController* PlayerController = Cast<APlayerController>(InstigatedBy);
+		AEnemy* Enemy = GetOwner<AEnemy>();
+		if (PlayerController && Enemy)
+		{
+			ABaseCharacter* PlayerCharacter = Cast<ABaseCharacter>(PlayerController->GetPawn());
+			if(!PlayerCharacter)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("%s could not cast InstigatedBy's pawn to ABaseCharacter."), *GetName());
+			}
+			UExperienceComponent* PlayerExperienceComponent = PlayerCharacter ? PlayerCharacter->FindComponentByClass<UExperienceComponent>() : nullptr;
+			if(!PlayerExperienceComponent)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("%s could not find UExperienceComponent on InstigatedBy's pawn."), *GetName());
+			}
+
+			PlayerExperienceComponent->AddExperience(Enemy->GetExperienceReward());
+		}
 
 		if (!bDeathBroadcast)
 		{
@@ -212,6 +249,16 @@ void UHealthComponent::OnOwnerTakeAnyDamage(
 // HEAL
 // =========================================================
 
+bool UHealthComponent::CanHeal() const
+{
+	if(CurrentHealth < MaxHealth && !IsDead())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 void UHealthComponent::Heal(float HealAmount)
 {
 	if (HealAmount <= 0.0f)
@@ -236,6 +283,7 @@ void UHealthComponent::Heal(float HealAmount)
 		MaxHealth
 	);
 
+	OnCharacterHealed.Broadcast();
 
 	UE_LOG(
 		LogTemp,
@@ -354,6 +402,28 @@ void UHealthComponent::RegenerateHealth()
 
 		StopRegeneration();
 	}
+}
+
+
+// =========================================================
+// RESET HEALTH
+// =========================================================
+
+void UHealthComponent::ResetHealth()
+{
+	CurrentHealth = MaxHealth;
+	bDeathBroadcast = false;
+
+	AActor* Owner = GetOwner();
+
+	if (Owner)
+	{
+		Owner->OnTakeAnyDamage.AddDynamic(
+			this,
+			&UHealthComponent::OnOwnerTakeAnyDamage
+		);
+	}
+	OnCharacterHealed.Broadcast();
 }
 
 

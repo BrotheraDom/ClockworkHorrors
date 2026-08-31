@@ -34,6 +34,7 @@ void UWeaponPickup::BeginPlay()
 	{
 		EnableWorldWeaponState();
 	}
+	NearbyPlayer = Cast<ACharacter>(GetWorld()->GetFirstPlayerController()->GetPawn());
 }
 
 void UWeaponPickup::FindWeaponPhysicsComponent()
@@ -193,22 +194,12 @@ bool UWeaponPickup::PickupWeapon(ACharacter* NewHolder)
 
 	UWeaponSlots* WeaponSlots = NewHolder->FindComponentByClass<UWeaponSlots>();
 
-	if (IsValid(WeaponSlots))
-	{
-		return WeaponSlots->AddWeapon(this);
-	}
-
-	if (GripSocketAlreadyOccupied(NewHolder))
+	if (!IsValid(WeaponSlots))
 	{
 		return false;
 	}
 
-	if (!StoreWeapon(NewHolder))
-	{
-		return false;
-	}
-
-	return EquipStoredWeapon();
+	return WeaponSlots->AddWeapon(this);
 }
 
 bool UWeaponPickup::StoreWeapon(ACharacter* NewHolder)
@@ -382,13 +373,11 @@ void UWeaponPickup::EnableWorldWeaponState()
 	if (IsValid(WeaponPhysicsComponent))
 	{
 		WeaponPhysicsComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-
+		WeaponPhysicsComponent->SetCollisionProfileName(TEXT("PhysicsActor"));
 		WeaponPhysicsComponent->SetCollisionResponseToAllChannels(ECR_Block);
-
 		WeaponPhysicsComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-
+		WeaponPhysicsComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 		WeaponPhysicsComponent->SetSimulatePhysics(true);
-
 		WeaponPhysicsComponent->WakeAllRigidBodies();
 	}
 

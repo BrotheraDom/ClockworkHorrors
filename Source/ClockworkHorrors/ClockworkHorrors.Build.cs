@@ -17,6 +17,7 @@ public class ClockworkHorrors : ModuleRules
            "AIModule",
            "NavigationSystem",
            "EnhancedInput",
+           "Niagara",
            //"AnimGraphRuntime"
         });
 

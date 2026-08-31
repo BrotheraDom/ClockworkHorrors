@@ -9,6 +9,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCharacterDeath);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCharacterHurt);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCharacterHealed);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class CLOCKWORKHORRORS_API UHealthComponent : public UActorComponent
@@ -36,12 +37,15 @@ public:
 	// HEALTH FUNCTIONS
 	// =========================================================
 
+	UFUNCTION()
+	bool CanHeal() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void Heal(float HealAmount);
 
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetCurrentHealth() const { return CurrentHealth; }
-
+	void SetCurrentHealth(float health) { CurrentHealth = health; }
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetMaxHealth() const { return MaxHealth; }
 
@@ -62,6 +66,9 @@ public:
 		return CurrentHealth / MaxHealth;
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void ResetHealth();
+
 
 	// =========================================================
 	// DELEGATES
@@ -72,6 +79,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Delegates")
 	FOnCharacterHurt OnCharacterHurt;
+
+	UPROPERTY(BlueprintAssignable, Category = "Delegates")
+	FOnCharacterHealed OnCharacterHealed;
 
 protected:
 

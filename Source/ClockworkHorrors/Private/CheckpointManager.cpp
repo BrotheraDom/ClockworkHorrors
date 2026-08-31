@@ -49,15 +49,17 @@ void ACheckpointManager::RespawnPlayerAtStart()
 		return;
 	}
 
+	PlayerCharacter->TeleportTo(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation(), false, true);
+
 	ABaseCharacter* BaseCharacter = Cast<ABaseCharacter>(PlayerCharacter);
 	if (BaseCharacter)
 	{
-		//BaseCharacter->ResetForRespawn(); // handles bIsDead, health, movement mode, hidden/collision/tick, HUD
+		BaseCharacter->ResetCharacterForRespawn(); // handles bIsDead, health, movement mode, hidden/collision/tick, HUD
 		
-		/*PlayerCharacter->SetActorHiddenInGame(false);
+		PlayerCharacter->SetActorHiddenInGame(false);
 		PlayerCharacter->SetActorEnableCollision(true);
 		PlayerCharacter->SetActorTickEnabled(true);
-		BaseCharacter->HideGameOverMenu();*/
+		/*BaseCharacter->HideGameOverMenu();*/
 	}
 	else
 	{
@@ -66,8 +68,6 @@ void ACheckpointManager::RespawnPlayerAtStart()
 		PlayerCharacter->SetActorEnableCollision(true);
 		PlayerCharacter->SetActorTickEnabled(true);
 	}
-
-	PlayerCharacter->TeleportTo(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation(), false, true);
 
 	APlayerController* PC = World->GetFirstPlayerController();
 	if (AClockworkPlayerController* ClockworkPC = Cast<AClockworkPlayerController>(PC))

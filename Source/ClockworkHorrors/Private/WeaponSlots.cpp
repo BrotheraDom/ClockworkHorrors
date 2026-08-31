@@ -4,19 +4,13 @@
 
 #include "WeaponPickup.h"
 
-#include "Components/InputComponent.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/PlayerController.h"
-#include "InputCoreTypes.h"
-#include "TimerManager.h"
 
 UWeaponSlots::UWeaponSlots()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 
 	EquippedSlotNumber = 0;
-
-	bSlotInputBindingsCreated = false;
 }
 
 void UWeaponSlots::BeginPlay()
@@ -26,68 +20,6 @@ void UWeaponSlots::BeginPlay()
 	MaximumWeaponSlots = FMath::Clamp(MaximumWeaponSlots, 1, 9);
 
 	StoredWeaponPickups.SetNum(MaximumWeaponSlots);
-
-	SetupSlotInput();
-}
-
-void UWeaponSlots::SetupSlotInput()
-{
-	ACharacter* OwningCharacter = Cast<ACharacter>(GetOwner());
-
-	if (!IsValid(OwningCharacter))
-	{
-		return;
-	}
-
-	APlayerController* OwningPlayerController = Cast<APlayerController>(OwningCharacter->GetController());
-
-	if (!IsValid(OwningPlayerController))
-	{
-		return;
-	}
-
-	if (!OwningCharacter->InputComponent)
-	{
-		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UWeaponSlots::SetupSlotInput);
-
-		return;
-	}
-
-	if (bSlotInputBindingsCreated)
-	{
-		return;
-	}
-
-	FInputKeyBinding& SlotOneBinding = OwningCharacter->InputComponent->BindKey(EKeys::One, IE_Pressed, this, &UWeaponSlots::HandleSlotOnePressed);
-	SlotOneBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotTwoBinding = OwningCharacter->InputComponent->BindKey(EKeys::Two, IE_Pressed, this, &UWeaponSlots::HandleSlotTwoPressed);
-	SlotTwoBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotThreeBinding = OwningCharacter->InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &UWeaponSlots::HandleSlotThreePressed);
-	SlotThreeBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotFourBinding = OwningCharacter->InputComponent->BindKey(EKeys::Four, IE_Pressed, this, &UWeaponSlots::HandleSlotFourPressed);
-	SlotFourBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotFiveBinding = OwningCharacter->InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &UWeaponSlots::HandleSlotFivePressed);
-	SlotFiveBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotSixBinding = OwningCharacter->InputComponent->BindKey(EKeys::Six, IE_Pressed, this, &UWeaponSlots::HandleSlotSixPressed);
-	SlotSixBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotSevenBinding = OwningCharacter->InputComponent->BindKey(EKeys::Seven, IE_Pressed, this, &UWeaponSlots::HandleSlotSevenPressed);
-	SlotSevenBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotEightBinding = OwningCharacter->InputComponent->BindKey(EKeys::Eight, IE_Pressed, this, &UWeaponSlots::HandleSlotEightPressed);
-	SlotEightBinding.bConsumeInput = false;
-
-	FInputKeyBinding& SlotNineBinding = OwningCharacter->InputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &UWeaponSlots::HandleSlotNinePressed);
-	SlotNineBinding.bConsumeInput = false;
-
-	FInputKeyBinding& DropWeaponBinding = OwningCharacter->InputComponent->BindKey(EKeys::F, IE_Pressed, this, &UWeaponSlots::HandleDropPressed);
-	DropWeaponBinding.bConsumeInput = false;
-	bSlotInputBindingsCreated = true;
 }
 
 bool UWeaponSlots::AddWeapon(UWeaponPickup* NewWeaponPickup)
@@ -152,45 +84,108 @@ bool UWeaponSlots::AddWeapon(UWeaponPickup* NewWeaponPickup)
 
 bool UWeaponSlots::EquipSlot(int32 SlotNumber)
 {
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT(
+			"WeaponSlots::EquipSlot requested %d. Equipped=%d. Maximum=%d"
+		),
+		SlotNumber,
+		EquippedSlotNumber,
+		MaximumWeaponSlots
+	);
+
 	if (SlotNumber < 1 || SlotNumber > MaximumWeaponSlots)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Weapon slot number is out of range."));
 		return false;
 	}
 
-	UWeaponPickup* RequestedWeaponPickup = GetWeaponPickupInSlot(SlotNumber);
+	UWeaponPickup* RequestedWeaponPickup =
+		GetWeaponPickupInSlot(SlotNumber);
 
 	if (!IsValid(RequestedWeaponPickup))
 	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("No registered weapon in weapon slot %d."),
+			SlotNumber
+		);
 		return false;
 	}
 
-	if (EquippedSlotNumber == SlotNumber && RequestedWeaponPickup->IsEquipped())
+	if (EquippedSlotNumber == SlotNumber &&
+		RequestedWeaponPickup->IsEquipped())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("Weapon slot %d already equipped."), SlotNumber);
 		return true;
 	}
 
 	if (EquippedSlotNumber > 0)
 	{
-		UWeaponPickup* CurrentWeaponPickup = GetWeaponPickupInSlot(EquippedSlotNumber);
+		UWeaponPickup* CurrentWeaponPickup =
+			GetWeaponPickupInSlot(EquippedSlotNumber);
 
-		if (IsValid(CurrentWeaponPickup) && CurrentWeaponPickup != RequestedWeaponPickup)
+		if (IsValid(CurrentWeaponPickup) &&
+			CurrentWeaponPickup != RequestedWeaponPickup)
 		{
 			CurrentWeaponPickup->UnequipStoredWeapon();
 		}
 	}
 
-	const bool bWeaponEquipped = RequestedWeaponPickup->EquipStoredWeapon();
+	const bool bWeaponEquipped =
+		RequestedWeaponPickup->EquipStoredWeapon();
 
 	if (!bWeaponEquipped)
 	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("EquipStoredWeapon failed for weapon slot %d."),
+			SlotNumber
+		);
 		return false;
 	}
 
 	EquippedSlotNumber = SlotNumber;
 
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("Weapon slot %d equipped successfully."),
+		SlotNumber
+	);
+
 	return true;
 }
 
+void UWeaponSlots::DropEquippedWeapon(int slot)
+{
+	const int32 DroppedSlot = slot;
+	const int32 WeaponArrayIndex = DroppedSlot - 1;
+
+	if (!StoredWeaponPickups.IsValidIndex(WeaponArrayIndex))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("WeaponArrayIndex is invalid."));
+		return;
+	}
+
+	UWeaponPickup* EquippedWeaponPickup = GetWeaponPickupInSlot(DroppedSlot);
+
+	if (!IsValid(EquippedWeaponPickup))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, TEXT("EquippedWeaponPickup is invalid."));
+		return;
+	}
+
+	StoredWeaponPickups[WeaponArrayIndex] = nullptr;
+
+	EquippedWeaponPickup->DropWeapon();
+}
+
+// Old Code for DropEquippedWeapon, kept for reference
+/*
 void UWeaponSlots::DropEquippedWeapon()
 {
 	if (EquippedSlotNumber <= 0)
@@ -199,6 +194,7 @@ void UWeaponSlots::DropEquippedWeapon()
 	}
 
 	const int32 DroppedSlot = EquippedSlotNumber;
+	const int32 WeaponArrayIndex = DroppedSlot - 1;
 
 	UWeaponPickup* EquippedWeaponPickup = GetWeaponPickupInSlot(DroppedSlot);
 
@@ -219,6 +215,7 @@ void UWeaponSlots::DropEquippedWeapon()
 
 	EquippedWeaponPickup->DropWeapon();
 }
+*/
 
 bool UWeaponSlots::HasWeaponInSlot(int32 SlotNumber) const
 {
@@ -267,54 +264,4 @@ UWeaponPickup* UWeaponSlots::GetWeaponPickupInSlot(int32 SlotNumber) const
 	}
 
 	return StoredWeaponPickups[WeaponArrayIndex];
-}
-
-void UWeaponSlots::HandleSlotOnePressed()
-{
-	EquipSlot(1);
-}
-
-void UWeaponSlots::HandleSlotTwoPressed()
-{
-	EquipSlot(2);
-}
-
-void UWeaponSlots::HandleSlotThreePressed()
-{
-	EquipSlot(3);
-}
-
-void UWeaponSlots::HandleSlotFourPressed()
-{
-	EquipSlot(4);
-}
-
-void UWeaponSlots::HandleSlotFivePressed()
-{
-	EquipSlot(5);
-}
-
-void UWeaponSlots::HandleSlotSixPressed()
-{
-	EquipSlot(6);
-}
-
-void UWeaponSlots::HandleSlotSevenPressed()
-{
-	EquipSlot(7);
-}
-
-void UWeaponSlots::HandleSlotEightPressed()
-{
-	EquipSlot(8);
-}
-
-void UWeaponSlots::HandleSlotNinePressed()
-{
-	EquipSlot(9);
-}
-
-void UWeaponSlots::HandleDropPressed()
-{
-	DropEquippedWeapon();
 }

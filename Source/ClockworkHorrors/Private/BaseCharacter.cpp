@@ -3,7 +3,6 @@
 #include "BaseCharacter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Misc/Optional.h"
-#include "RiflePickup.h"
 #include "BasePickup.h"
 #include "Components/SphereComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -29,133 +28,77 @@
 
 #include "Utils/HealthComponent.h"
 #include "Utils/InventoryComponent.h"
+#include "Utils/ExperienceComponent.h"
 
+#include "InputCoreTypes.h"
 #include "CheckpointManager.h"
 #include "BaseBlaster.h"
+#include "Staff.h"
 #include "UI/PauseMenuWidget.h"
 #include "UI/GameOverWidget.h"
 #include "UI/OptionsMenuWidget.h"
 #include "UI/MainInventoryWidget.h"
-#include "PlayerAnimation.h"
+#include "Components/CharacterAnimationComponent.h"
 #include <WeaponPickup.h>
-
+#include "WeaponSlots.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Utils/PlayerSaveGame.h"
+#include "Interfaces/CompanionInterface.h"
+#include "SealedDoor.h"
+#include "Actors/TrapActivator.h"
 ABaseCharacter::ABaseCharacter()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	//CurrentHealth = MaxHealth;
-	/*RifleMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("RifleMesh"));
-
-	RifleMesh->SetupAttachment(GetMesh(), TEXT("Weapon_r"));
-
-	
-	RifleMesh->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
-	RifleMesh->SetRelativeRotation(FRotator(90.0f, 0.0f, -90.0f));
-
-	RifleMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	RifleMesh->SetGenerateOverlapEvents(false);
-	RifleMesh->SetVisibility(false);*/
 
 	// Components
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+	WeaponSlots = CreateDefaultSubobject<UWeaponSlots>(TEXT("WeaponSlots"));
+	ExperienceComponent = CreateDefaultSubobject<UExperienceComponent>(TEXT("ExperienceComponent"));
 
+	MiniMapSpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("MiniMapSpringArm"));
+	MiniMapSpringArm->SetupAttachment(RootComponent);
+	MiniMapSpringArm->TargetArmLength = 1000.0f;
+	MiniMapSpringArm->SetRelativeRotation(FRotator(-90.0f, 0.0f, 0.0f));
+	MiniMapSpringArm->bInheritPitch = false;
+	MiniMapSpringArm->bInheritYaw = false;
+	MiniMapSpringArm->bInheritRoll = false;
+	MiniMapCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MiniMapCaptureComponent"));
+	MiniMapCaptureComponent->SetupAttachment(MiniMapSpringArm);
 }
-
 
 void ABaseCharacter::TryPickupInteract()
 {
-	//UE_LOG(LogTemp, Warning, TEXT("TryPickupInteract called"));
 	TArray<AActor*> OverlappingActors;
-
-
-
-	///REMOVE THIS BLOCK OF CODE LATER, THIS IS JUST FOR TESTING INVENTORTY COMPONENT FUNCTIONALITY
-	
-	GetOverlappingActors(OverlappingActors, ABasePickup::StaticClass());
+	GetOverlappingActors(OverlappingActors);
 
 	for (AActor* Actor : OverlappingActors)
 	{
-		ABasePickup* BasePickup = Cast<ABasePickup>(Actor);
-
-		if (!BasePickup)
-		{
-			continue;
-		}
-		BasePickup->OnInteract();
-		return;
+		ObjectInteract(Actor);
+		ItemEquip(Actor);
 	}
-	
-
-
-
-
-
-
-	
-	//GetOverlappingActors(OverlappingActors, UWeaponPickup::StaticClass());
-
-	//for (AActor* Actor : OverlappingActors)
-	//{
-	//	ABaseWeapon* baseWeapon = Cast<ABaseWeapon>(Actor);
-	//	if (baseWeapon)
-	//	{
-	//		UWeaponPickup* BasePickup = baseWeapon->FindComponentByClass<UWeaponPickup>();
-	//			if (!BasePickup)
-	//			{
-	//				continue;
-	//			}
-	//			//BasePickup->OnWeaponEquippedStateChanged.Broadcast();
-	//			//if (weapon)
-	//			//{
-	//			//	if (BasePickup->GetInventorySlot() == weapon->FindComponentByClass<UWeaponPickup>()->GetInventorySlot())
-	//			//	{
-	//			//		continue;
-	//			//	}
-	//			//}
-	//		BasePickup->HandleInteractPressed();
-	//		{
-	//			if (BasePickup->ItemDataAsset->WeaponClass)
-	//			{
-	//				weaponClass = BasePickup->ItemDataAsset->WeaponClass;
-	//				weapon = Cast<ABaseWeapon>(Actor);
-	//				EquipPickupWeapon();
-	//			}
-
-
-	//		}
-
-
-
-	//	}
-	//	return;
-	//}
-	
 }
-void ABaseCharacter::EquipPickupWeapon()
+
+void ABaseCharacter::ObjectInteract(AActor* Actor)
 {
-	// THIS NEEDS TO SPAWN THE WEAPON FROM THE PICKUP'S ITEM DATA ASSET
-	/*bHasWeapon = true;
-	weapon->ParentPawn = Cast<APawn>(this);
-	weapon->AttachToComponent(
-		GetMesh(),
-		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-		weapon->WeaponSocket
-	);*/
+	if (ASealedDoor* Door = Cast<ASealedDoor>(Actor))
+	{
+		Door->OnInteract();
+	}
+
+	if(ATrapActivator* TrapActivator = Cast<ATrapActivator>(Actor))
+	{
+		TrapActivator->OnInteract();
+	}
 }
-//
-//float ABaseCharacter::ApplyDamage(float DamageAmount)
-//{
-//	return 0.0f;
-//}
 
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-
 	bIsDead = false;
 	if (HealthComponent)
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("Current Health: %f"), HealthComponent->GetCurrentHealth());
 		HealthComponent->OnCharacterDeath.AddDynamic(
 			this,
 			&ABaseCharacter::HandleDeath
@@ -165,14 +108,29 @@ void ABaseCharacter::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("HealthComponent is missing on %s"), *GetName());
 	}
-	UAnimInstance* temp = GetMesh()->GetAnimInstance();
-	playerAnim = Cast<UPlayerAnimation>(temp);
-	if (!playerAnim)
+	// Find the reusable animation component attached to this character.
+	CharacterAnimationComponent = FindComponentByClass<UCharacterAnimationComponent>();
+
+	if (CharacterAnimationComponent)
 	{
-		Destroy();
+		CharacterAnimationComponent->OnActionAnimationEnded.AddDynamic(
+			this,
+			&ABaseCharacter::HandleActionAnimationEnded
+		);
 	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("CharacterAnimationComponent is missing on %s"),
+			*GetName()
+		);
+	}
+
+	// Keep the existing attack delegate so any current weapon/gameplay code
+	// that broadcasts OnAttack continues to work.
 	OnAttack.AddDynamic(this, &ABaseCharacter::AttackingAnim);
-	playerAnim->OnAttackEnded.AddDynamic(this, &ABaseCharacter::AttackAnimEnded);
 	bGameOverOverlayShown = false;
 	GameOverSlateWidget.Reset();
 
@@ -193,20 +151,27 @@ void ABaseCharacter::BeginPlay()
 
 	//Find the CheckpointManager in the world
 	CheckpointManager = Cast<ACheckpointManager>(UGameplayStatics::GetActorOfClass(GetWorld(), ACheckpointManager::StaticClass()));
-	if(!CheckpointManager)
+	if (!CheckpointManager)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CheckpointManager not found in the world!"));
 	}
 
 	if (InventoryComponent)
 	{
-		InventoryComponent->OnWeaponPickedUp.AddDynamic(this, &ABaseCharacter::EquipPickupWeapon);
+		//InventoryComponent->OnWeaponPickedUp.AddDynamic(this, &ABaseCharacter::EquipPickupWeapon);
 	}
 
-	
+
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
 	if (PlayerController)
 	{
+		MiniMapWidget = CreateWidget(GetWorld()->GetFirstPlayerController(), MiniMapClass);
+		if (MiniMapWidget)
+		{
+			MiniMapWidget->AddToViewport();
+			MiniMapWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+
 		UUserWidget* InventoryHud = CreateWidget(GetWorld()->GetFirstPlayerController(), InventoryHudClass);
 		InventoryWidget = Cast<UMainInventoryWidget>(InventoryHud);
 
@@ -223,56 +188,39 @@ void ABaseCharacter::BeginPlay()
 			}
 		}
 	}
-	
 
+	if (Companion)
+	{
+		FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.0f + FVector(0.0f, 100.0f, 0.0f);
+		FRotator SpawnRotation = GetActorRotation();
+
+
+		FHitResult HitResult;
+		FVector TraceStart = SpawnLocation;
+		FVector TraceEnd = SpawnLocation - FVector(0.0f, 0.0f, 1000.0f);
+
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+
+		if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+		{
+
+			SpawnLocation = HitResult.Location + FVector(0.0f, 0.0f, 50.0f);
+		}
+
+		AActor* Comp = GetWorld()->SpawnActor<AActor>(Companion, SpawnLocation, SpawnRotation);
+		if (Comp)
+		{
+			CompanionInstance = Cast<ICompanionInterface>(Comp);
+		}
+	}
+	OnLevelChange.AddDynamic(this, &ABaseCharacter::SavePlayerData);
+	GetWorld()->OnWorldBeginPlay.AddUObject(this, &ABaseCharacter::LoadPlayerData);
 }
 
-//void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-//{
-//	Super::SetupPlayerInputComponent(PlayerInputComponent);
-//
-//	FInputActionBinding& PauseBinding =
-//		PlayerInputComponent->BindAction("PauseGame", IE_Pressed, this, &ABaseCharacter::HandlePausePressed);
-//	PauseBinding.bExecuteWhenPaused = true;
-//
-//	FInputActionBinding& QuitBinding =
-//		PlayerInputComponent->BindAction("QuitGame", IE_Pressed, this, &ABaseCharacter::QuitGameFromPause);
-//	QuitBinding.bExecuteWhenPaused = true;
-//}
 
-//void ABaseCharacter::ApplyDamage(float DamageAmount)
-//{
-//	if (bIsDead || DamageAmount <= 0.0f)
-//	{
-//		return;
-//	}
-//
-//	const float OldHealth = CurrentHealth;
-//	CurrentHealth = FMath::Clamp(CurrentHealth - DamageAmount, 0.0f, MaxHealth);
-//
-//	UE_LOG(LogTemp, Warning, TEXT("%s took %f damage. Health: %f -> %f"),
-//		*GetName(), DamageAmount, OldHealth, CurrentHealth);
-//
-//	if (CurrentHealth <= 0.0f)
-//	{
-//		HandleDeath();
-//	}
-//}
-//
-//void ABaseCharacter::Heal(float HealAmount)
-//{
-//	if (bIsDead || HealAmount <= 0.0f)
-//	{
-//		return;
-//	}
-//
-//	const float OldHealth = CurrentHealth;
-//	CurrentHealth = FMath::Clamp(CurrentHealth + HealAmount, 0.0f, MaxHealth);
-//
-//	UE_LOG(LogTemp, Warning, TEXT("%s healed %f. Health: %f -> %f"),
-//		*GetName(), HealAmount, OldHealth, CurrentHealth);
-//}
-//
+
+
 void ABaseCharacter::HandleDeath()
 {
 	if (bIsDead)
@@ -283,7 +231,7 @@ void ABaseCharacter::HandleDeath()
 	bIsDead = true;
 
 	UE_LOG(LogTemp, Warning, TEXT("%s died."), *GetName());
-	
+
 	if (GetCharacterMovement())
 	{
 		GetCharacterMovement()->StopMovementImmediately();
@@ -294,10 +242,54 @@ void ABaseCharacter::HandleDeath()
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
 
-	HideHealthBarHUD();
-	//ShowGameOverOverlay();
+	HideHuds();
 	ShowGameOverMenu();
 	OnDeathBP();
+}
+
+void ABaseCharacter::ResetCharacterForRespawn()
+{
+	if (!HealthComponent)
+	{
+		UE_LOG(
+			LogTemp,
+			Error,
+			TEXT("HealthComponent is missing on %s"),
+			*GetName()
+		);
+		return;
+	}
+
+	HealthComponent->ResetHealth();
+	bIsDead = false;
+
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+
+	if (UCharacterMovementComponent* MovementComponent =
+		GetCharacterMovement())
+	{
+		MovementComponent->StopMovementImmediately();
+		MovementComponent->SetMovementMode(MOVE_Walking);
+	}
+
+	if (GameOverMenuWidget)
+	{
+		GameOverMenuWidget->RemoveFromParent();
+		GameOverMenuWidget = nullptr;
+	}
+
+	HideGameOverOverlay();
+
+	if (APlayerController* PlayerController =
+		Cast<APlayerController>(GetController()))
+	{
+		PlayerController->SetPause(false);
+		PlayerController->SetShowMouseCursor(false);
+		PlayerController->SetInputMode(FInputModeGameOnly());
+	}
+	ShowHuds();
 }
 
 void ABaseCharacter::ShowGameOverOverlay()
@@ -352,7 +344,7 @@ void ABaseCharacter::ShowGameOverOverlay()
 								.ColorAndOpacity(FLinearColor::White)
 						]
 				]
-			+ SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.Padding(FMargin(5.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -371,7 +363,7 @@ void ABaseCharacter::ShowGameOverOverlay()
 								.ColorAndOpacity(FLinearColor::White)
 						]
 				]
-			+ SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.Padding(FMargin(5.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -435,19 +427,7 @@ void ABaseCharacter::HandlePausePressed()
 	UE_LOG(LogTemp, Warning, TEXT("Pause key pressed. bPauseOverlayShown = %s"),
 		bPauseOverlayShown ? TEXT("true") : TEXT("false"));
 
-	/*if (bIsDead)
-	{
-		return;
-	}*/
 
-	/*if (bPauseOverlayShown)
-	{
-		HidePauseOverlay();
-	}
-	else
-	{
-		ShowPauseOverlay();
-	}*/
 	APlayerController* PlayerController =
 		Cast<APlayerController>(GetController());
 
@@ -474,7 +454,7 @@ void ABaseCharacter::HandlePausePressed()
 		PauseMenuWidget = CreateWidget<UPauseMenuWidget>(GetWorld(), PauseMenuClass);
 		PauseMenuWidget->AddToViewport(2);
 	}
-	
+
 
 	if (!PauseMenuWidget)
 	{
@@ -500,8 +480,66 @@ void ABaseCharacter::HandlePausePressed()
 
 void ABaseCharacter::AttackingAnim()
 {
-	playerAnim->SwingingAnimation();
+	if (!CharacterAnimationComponent)
+	{
+		if (weapon)
+		{
+			weapon->ActionStopped();
+		}
+		return;
+	}
+
+	const bool bPlayedAnimation =
+		CharacterAnimationComponent->PlayActionAnimation(
+			ECharacterActionAnimationType::Attack
+		);
+
+	// If this character has no Attack animation assigned, do not leave
+	// the weapon waiting for an animation-end callback that will never fire.
+	if (!bPlayedAnimation && weapon)
+	{
+		weapon->ActionStopped();
+	}
 }
+
+void ABaseCharacter::HandleActionAnimationEnded(
+	ECharacterActionAnimationType AnimationType,
+	bool bInterrupted
+)
+{
+	if (AnimationType == ECharacterActionAnimationType::Attack)
+	{
+		AttackAnimEnded();
+	}
+}
+
+// .cpp
+float ABaseCharacter::GetExperiencePercent() const
+{
+	if (!ExperienceComponent)
+	{
+		return 0.0f;
+	}
+
+	return ExperienceComponent->GetExperiencePercent();
+}
+
+FText ABaseCharacter::GetExperienceText() const
+{
+	if (!ExperienceComponent)
+	{
+		return FText::FromString(TEXT("Experience Component not found"));
+	}
+
+	return FText::FromString(FString::Printf(
+		TEXT("Lv. %d   %d / %d XP"),
+		ExperienceComponent->GetLevel(),
+		FMath::RoundToInt(ExperienceComponent->GetExperiencePoints()),
+		FMath::RoundToInt(ExperienceComponent->GetMaxExperiencePoints())
+	));
+}
+
+
 
 void ABaseCharacter::AttackAnimEnded()
 {
@@ -521,7 +559,7 @@ void ABaseCharacter::ResumeGame() {
 		return;
 	}
 
-	
+
 	PlayerController->SetPause(false);
 
 	if (PauseMenuWidget)
@@ -592,7 +630,7 @@ void ABaseCharacter::PreviousMenu()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No menu to go back to."));
 	}
-	
+
 }
 
 void ABaseCharacter::ShowPauseOverlay()
@@ -653,7 +691,7 @@ void ABaseCharacter::ShowPauseOverlay()
 								.ColorAndOpacity(FLinearColor::White)
 						]
 				]
-			+ SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.Padding(FMargin(5.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -671,7 +709,7 @@ void ABaseCharacter::ShowPauseOverlay()
 								.ColorAndOpacity(FLinearColor::White)
 						]
 				]
-			+ SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.Padding(FMargin(5.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -689,7 +727,7 @@ void ABaseCharacter::ShowPauseOverlay()
 								.ColorAndOpacity(FLinearColor::White)
 						]
 				]
-			+ SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.Padding(FMargin(5.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
@@ -812,19 +850,21 @@ void ABaseCharacter::ShowControlsOverlay()
 									TEXT("  W / A / S / D - Move\n")
 									TEXT("  Mouse - Look\n\n")
 									TEXT("  SPACE - Jump\n\n")
+									TEXT("  I - Inventory\n")
 									TEXT("Combat & Interaction:\n")
 									TEXT("  Left Mouse Button - Attack\n")
+									TEXT("  Scroll wheel - Change spell\n")
 									TEXT("  E - Equip item\n")
 									TEXT("  F - Drop item\n\n")
 									TEXT("Pause / Restart / Quit:\n")
 									TEXT("  M - Pause / Unpause\n")
-									TEXT("  J - Quit (when paused or on Game Over)\n")
+									
 								))
 								.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
 								.ColorAndOpacity(FLinearColor::White)
 						]
 				]
-			+ SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.Padding(FMargin(10.f))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Bottom)
@@ -966,7 +1006,7 @@ void ABaseCharacter::ShowStartScreen()
 								.ColorAndOpacity(Orange)
 								.Justification(ETextJustify::Center)
 						]
-					+ SVerticalBox::Slot()
+						+ SVerticalBox::Slot()
 						.Padding(FMargin(0.f, 10.f, 0.f, 5.f))
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
@@ -979,12 +1019,12 @@ void ABaseCharacter::ShowStartScreen()
 									})
 								[
 									SNew(STextBlock)
-										.Text(FText::FromString(TEXT("Start Game")))
+										.Text(FText::FromString(TEXT("Start Level")))
 										.Font(FCoreStyle::GetDefaultFontStyle("Regular", 20))
 										.ColorAndOpacity(Orange)
 								]
 						]
-					+ SVerticalBox::Slot()
+						+ SVerticalBox::Slot()
 						.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
@@ -1022,100 +1062,6 @@ void ABaseCharacter::ShowStartScreen()
 	}
 }
 
-void ABaseCharacter::HideStartScreen()
-{
-	if (!bStartScreenShown)
-	{
-		return;
-	}
-
-	if (!(GEngine && GEngine->GameViewport))
-	{
-		return;
-	}
-
-	if (StartSlateWidget.IsValid())
-	{
-		GEngine->GameViewport->RemoveViewportWidgetContent(StartSlateWidget.ToSharedRef());
-		StartSlateWidget.Reset();
-	}
-
-	bStartScreenShown = false;
-
-	UWorld* World = GetWorld();
-	if (World)
-	{
-		UGameplayStatics::SetGamePaused(World, false);
-	}
-
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (PC)
-	{
-		PC->SetPause(false);
-		PC->bShowMouseCursor = false;
-		PC->SetInputMode(FInputModeGameOnly());
-	}
-
-	ShowHealthBarHUD();
-}
-
-void ABaseCharacter::InventoryHUD()
-{
-	//UE_LOG(LogTemp, Warning, TEXT("ABaseCharacter::InventoryHUD called. InventoryWidget is %s"), InventoryWidget ? TEXT("valid") : TEXT("null"));
-
-	if (InventoryWidget)
-	{
-		isInInventory = !isInInventory;
-
-		if (isInInventory)
-		{
-			InventoryWidget->ShowInventory(isInInventory);
-		}
-		else if (!isInInventory)
-		{
-			InventoryWidget->ShowInventory(isInInventory);
-		}
-
-	}
-}
-
-float ABaseCharacter::GetHealthPercent() const
-{
-	if(!HealthComponent)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HealthComponent is null in GetHealthPercent()"));
-		return 0.0f;
-	}
-
-	if(HealthComponent->GetMaxHealth() <= 0.0f)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MaxHealth is zero or negative in GetHealthPercent()"));
-		return 0.0f;
-	}
-
-	return HealthComponent->GetCurrentHealth() / HealthComponent->GetMaxHealth();
-
-	/*if (MaxHealth <= 0.0f)
-	{
-		return 0.0f;
-	}
-	return CurrentHealth / MaxHealth;*/
-}
-
-FText ABaseCharacter::GetHealthText() const
-{
-	if(!HealthComponent)
-	{
-		return FText::FromString(TEXT("Health Component not found"));
-	}
-
-	return FText::FromString(FString::Printf(TEXT("%d / %d"),
-		FMath::RoundToInt(HealthComponent->GetCurrentHealth()), FMath::RoundToInt(HealthComponent->GetMaxHealth())));
-
-	/*return FText::FromString(FString::Printf(TEXT("%d / %d"),
-		FMath::RoundToInt(CurrentHealth), FMath::RoundToInt(MaxHealth)));*/
-}
-
 void ABaseCharacter::ShowHealthBarHUD()
 {
 	if (bHealthBarShown)
@@ -1127,6 +1073,8 @@ void ABaseCharacter::ShowHealthBarHUD()
 	{
 		return;
 	}
+
+	static FSlateColorBrush HealthBarBackgroundBrush(FLinearColor(0.35f, 0.2f, 0.0f, 1.0f));
 
 	HealthBarSlateWidget =
 		SNew(SOverlay)
@@ -1154,8 +1102,8 @@ void ABaseCharacter::ShowHealthBarHUD()
 						[
 							SNew(SProgressBar)
 								.Percent_Lambda([this]() { return TOptional<float>(GetHealthPercent()); })
-								.FillColorAndOpacity(FLinearColor(0.85f, 0.1f, 0.1f, 1.f))
-								.BackgroundImage(FCoreStyle::Get().GetBrush("ProgressBar.Background"))
+								.FillColorAndOpacity(FLinearColor(1.0f, 0.65f, 0.0f, 1.f))
+								.BackgroundImage(&HealthBarBackgroundBrush)
 						]
 				]
 		];
@@ -1163,6 +1111,111 @@ void ABaseCharacter::ShowHealthBarHUD()
 	GEngine->GameViewport->AddViewportWidgetContent(HealthBarSlateWidget.ToSharedRef());
 	bHealthBarShown = true;
 }
+
+
+void ABaseCharacter::HideStartScreen()
+{
+	if (!bStartScreenShown)
+	{
+		return;
+	}
+
+	if (!GEngine || !GEngine->GameViewport)
+	{
+		return;
+	}
+
+	if (StartSlateWidget.IsValid())
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(StartSlateWidget.ToSharedRef());
+	}
+
+	StartSlateWidget.Reset();
+	bStartScreenShown = false;
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		UGameplayStatics::SetGamePaused(World, false);
+	}
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (PC)
+	{
+		PC->SetPause(false);
+		PC->bShowMouseCursor = false;
+		PC->SetInputMode(FInputModeGameOnly());
+	}
+
+	ShowHuds();
+}
+
+void ABaseCharacter::InventoryHUD()
+{
+
+	if (InventoryWidget)
+	{
+		isInInventory = !isInInventory;
+
+		if (isInInventory)
+		{
+			InventoryWidget->ShowInventory(isInInventory);
+		}
+		else if (!isInInventory)
+		{
+			InventoryWidget->ShowInventory(isInInventory);
+		}
+
+	}
+}
+
+void ABaseCharacter::HideHuds()
+{
+	HideMiniMapHUD();
+	HideHealthBarHUD();
+	HideReticleHUD();
+	HideExperienceHUD();
+}
+
+void ABaseCharacter::ShowHuds()
+{
+	ShowMiniMapHUD();
+	ShowHealthBarHUD();
+	ShowReticleHUD();
+	ShowExperienceHUD();
+}
+
+float ABaseCharacter::GetHealthPercent() const
+{
+	if (!IsValid(HealthComponent))
+	{
+		return 0.0f;
+	}
+
+	const float CurrentHealth = HealthComponent->GetCurrentHealth();
+	const float MaxHealth = HealthComponent->GetMaxHealth();
+
+	if (MaxHealth <= 0.0f)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp(CurrentHealth / MaxHealth, 0.0f, 1.0f);
+}
+
+FText ABaseCharacter::GetHealthText() const
+{
+	if (!HealthComponent)
+	{
+		return FText::FromString(TEXT("Health Component not found"));
+	}
+
+	return FText::FromString(FString::Printf(TEXT("%d / %d"),
+		FMath::RoundToInt(HealthComponent->GetCurrentHealth()), FMath::RoundToInt(HealthComponent->GetMaxHealth())));
+
+}
+
+
 
 void ABaseCharacter::HideHealthBarHUD()
 {
@@ -1178,6 +1231,77 @@ void ABaseCharacter::HideHealthBarHUD()
 	}
 
 	bHealthBarShown = false;
+}
+
+void ABaseCharacter::ShowReticleHUD()
+{
+	if (bReticleShown)
+	{
+		return;
+	}
+
+	if (!(GEngine && GEngine->GameViewport))
+	{
+		return;
+	}
+
+	const FLinearColor ReticleColor = FLinearColor::White;
+
+	ReticleSlateWidget =
+		SNew(SOverlay)
+
+		// Horizontal bar
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+				.WidthOverride(24.0f)
+				.HeightOverride(2.0f)
+				[
+					SNew(SColorBlock)
+						.Color(ReticleColor)
+				]
+		]
+
+		// Vertical bar
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SBox)
+				.WidthOverride(2.0f)
+				.HeightOverride(24.0f)
+				[
+					SNew(SColorBlock)
+						.Color(ReticleColor)
+				]
+		];
+
+	GEngine->GameViewport->AddViewportWidgetContent(
+		ReticleSlateWidget.ToSharedRef()
+	);
+
+	bReticleShown = true;
+}
+
+void ABaseCharacter::HideReticleHUD()
+{
+	if (!bReticleShown)
+	{
+		return;
+	}
+
+	if (GEngine && GEngine->GameViewport && ReticleSlateWidget.IsValid())
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(
+			ReticleSlateWidget.ToSharedRef()
+		);
+
+		ReticleSlateWidget.Reset();
+	}
+
+	bReticleShown = false;
 }
 
 void ABaseCharacter::ShowGameOverMenu()
@@ -1269,6 +1393,16 @@ void ABaseCharacter::RestartLevel()
 		bHealthBarShown = false;
 	}
 
+	if (bReticleShown && GEngine && GEngine->GameViewport && ReticleSlateWidget.IsValid())
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(
+			ReticleSlateWidget.ToSharedRef()
+		);
+
+		ReticleSlateWidget.Reset();
+		bReticleShown = false;
+	}
+
 	UGameplayStatics::SetGamePaused(World, false);
 
 	APlayerController* PC = World->GetFirstPlayerController();
@@ -1287,7 +1421,7 @@ void ABaseCharacter::RestartLevel()
 
 void ABaseCharacter::Respawn()
 {
-	if(!CheckpointManager)
+	if (!CheckpointManager)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CheckpointManager is null in Respawn()"));
 		return;
@@ -1296,6 +1430,27 @@ void ABaseCharacter::Respawn()
 	//UE_LOG(LogTemp, Warning, TEXT("Respawning player..."));
 
 	CheckpointManager->CallFunctionByNameWithArguments(TEXT("RespawnPlayer"), *GLog, nullptr, true);
+}
+
+float ABaseCharacter::GetCurrentHealth() const
+{
+	return HealthComponent ? HealthComponent->GetCurrentHealth() / HealthComponent->GetMaxHealth() : 0.0f;
+}
+
+void ABaseCharacter::UpdateCompanionTarget(AActor* NewTarget, float damage)
+{
+	if (CompanionInstance)
+	{
+		CompanionInstance->UpdateTarget(NewTarget, damage);
+	}
+}
+
+void ABaseCharacter::HealPlayer(float HealAmount)
+{
+	if (HealthComponent)
+	{
+		HealthComponent->Heal(HealAmount);
+	}
 }
 
 void ABaseCharacter::QuitGameFromPause()
@@ -1325,15 +1480,23 @@ void ABaseCharacter::QuitGameFromPause()
 
 void ABaseCharacter::Attack()
 {
-	if (bHasWeapon)
+	if (weapon)
 	{
 		weapon->Attack();
-		
+
+	}
+}
+
+void ABaseCharacter::StopAttack()
+{
+	if (AStaff* Staff = Cast<AStaff>(weapon))
+	{
+		Staff->ReleaseSpellCharge();
 	}
 }
 void ABaseCharacter::Reload()
 {
-	if (bHasWeapon)
+	if (weapon)
 	{
 		if (ABaseBlaster* blaster = Cast<ABaseBlaster>(weapon))
 		{
@@ -1342,3 +1505,308 @@ void ABaseCharacter::Reload()
 		}
 	}
 }
+
+void ABaseCharacter::EquipWeaponSlot(int32 SlotNumber)
+{
+	if (!WeaponSlots || !InventoryComponent)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("WeaponSlots or InventoryComponent is null"));
+		return;
+	}
+
+	if (!WeaponSlots->HasWeaponInSlot(SlotNumber))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, FString::Printf(TEXT("Slot %d is empty"), SlotNumber));
+		return;
+	}
+
+	if (weapon && weapon->ActionHappening)
+	{
+		return;
+	}
+
+	ABaseWeapon* OldWeapon = weapon;
+	if (OldWeapon)
+	{
+		if (UWeaponPickup* TempPickup = OldWeapon->GetComponentByClass<UWeaponPickup>())
+		{
+			if (TempPickup->ItemDataAsset)
+			{
+				FInventorySlotEntry TempSlot = InventoryComponent->GetItem(TempPickup->ItemDataAsset->ItemName);
+
+				TempSlot.bIsEquipped = false;
+
+				InventoryComponent->OnItemDataAdded.Broadcast(TempSlot, TempSlot.CurrentBind, true);
+			}
+		}
+	}
+
+	WeaponSlots->EquipSlot(SlotNumber);
+
+	if (!weapon)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, FString::Printf(TEXT("EquipSlot(%d) ran, but weapon is still null"), SlotNumber));
+		return;
+	}
+
+	if (UWeaponPickup* BasePickup = weapon->GetComponentByClass<UWeaponPickup>())
+	{
+		if (BasePickup->ItemDataAsset)
+		{
+			FInventorySlotEntry Slot = InventoryComponent->GetItem(BasePickup->ItemDataAsset->ItemName);
+
+			Slot.bIsEquipped = true;
+
+			InventoryComponent->OnItemDataAdded.Broadcast(Slot, Slot.CurrentBind, true);
+		}
+	}
+}
+
+void ABaseCharacter::ItemEquip(AActor* Actor)
+{
+	if (!IsValid(Actor))
+	{
+		return;
+	}
+
+	// Weapon pickup path.
+	if (UWeaponPickup* WeaponPickup =
+		Actor->FindComponentByClass<UWeaponPickup>())
+	{
+		if (WeaponPickup->IsStored())
+		{
+			return;
+		}
+
+		ABaseWeapon* BaseWeapon = Cast<ABaseWeapon>(Actor);
+		if (weapon)
+		{
+			UWeaponPickup* tempPickup = weapon->GetComponentByClass<UWeaponPickup>();
+			FInventorySlotEntry tempSlot = InventoryComponent->GetItem(tempPickup->ItemDataAsset->ItemName);
+			tempSlot.bIsEquipped = false;
+			InventoryComponent->OnItemDataAdded.Broadcast(tempSlot, tempSlot.CurrentBind, true);
+		}
+		WeaponPickup->HandleInteractPressed();
+
+		if (!WeaponPickup->IsStored() ||
+			WeaponPickup->GetStoredHolder() != this)
+		{
+			return;
+		}
+
+		if (WeaponPickup->ItemDataAsset)
+		{
+			if (IsValid(BaseWeapon))
+			{
+				WeaponPickup->ItemDataAsset->WeaponRef = BaseWeapon;
+			}
+
+			if (InventoryComponent)
+			{
+				InventoryComponent->AddItem(WeaponPickup->ItemDataAsset);
+			}
+
+			if (WeaponPickup->ItemDataAsset->WeaponClass)
+			{
+				weaponClass = WeaponPickup->ItemDataAsset->WeaponClass;
+			}
+		}
+
+		if (IsValid(BaseWeapon))
+		{
+			BaseWeapon->ParentPawn = this;
+			BaseWeapon->bPickedUp = true;
+		}
+
+		if (WeaponSlots)
+		{
+
+			const bool bAddedToWeaponSlots =
+				WeaponSlots->AddWeapon(WeaponPickup);
+			FInventorySlotEntry slot = InventoryComponent->GetItem(WeaponPickup->ItemDataAsset->ItemName);
+			slot.bIsEquipped = true;
+			InventoryComponent->OnItemDataAdded.Broadcast(slot, slot.CurrentBind, false);
+			UE_LOG(
+				LogTemp,
+				Warning,
+				TEXT("WeaponSlots: added %s to weapon slot %d: %s"),
+				*GetNameSafe(BaseWeapon),
+				WeaponPickup->GetInventorySlot(),
+				bAddedToWeaponSlots ? TEXT("true") : TEXT("false")
+			);
+			return;
+		}
+
+		// Generic pickup path: health items and any non-weapon ABasePickup.
+		if (ABasePickup* GenericPickup = Cast<ABasePickup>(Actor))
+		{
+			GenericPickup->OnInteract();
+			return;
+		}
+	}
+
+	// Generic pickup path: health items and any non-weapon ABasePickup.
+	if (ABasePickup* GenericPickup = Cast<ABasePickup>(Actor))
+	{
+		GenericPickup->OnInteract();
+		return;
+	}
+}
+
+void ABaseCharacter::SavePlayerData()
+{
+	UPlayerSaveGame* saveData = UPlayerSaveGame::LoadPlayerData();
+	if (saveData)
+	{
+		saveData->SavePlayerData(HealthComponent->GetCurrentHealth(), ExperienceComponent->GetExperiencePoints(), ExperienceComponent->GetLevel(), ExperienceComponent->GetSkillPoints(), InventoryComponent->GetInventory(), WeaponSlots->GetEquippedSlot());
+	}
+	HideHuds();
+}
+
+void ABaseCharacter::LoadPlayerData()
+{
+	UPlayerSaveGame* saveData = UPlayerSaveGame::LoadPlayerData();
+	if (saveData)
+	{
+		ExperienceComponent->SetLevel(saveData->Level);
+		ExperienceComponent->SetExperiencePoints(saveData->Experience);
+		ExperienceComponent->SetSkillPoints(saveData->SkillPoints);
+		HealthComponent->SetCurrentHealth(saveData->currentHealth);
+		for (FInventorySlotEntry slot : saveData->Inventory)
+		{
+			if (slot.ItemData)
+			{
+				//InventoryComponent->AddItem(slot.ItemData);
+				FActorSpawnParameters Params;
+				Params.Instigator = this;
+				Params.Owner = this;
+				AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(
+					slot.ItemData->BlueprintClass,
+					this->GetActorLocation(),
+					this->GetActorRotation(),
+					Params
+				);
+				if (SpawnedActor)
+				{
+					ItemEquip(SpawnedActor);
+					if (Cast<ABaseBlaster>(SpawnedActor))
+					{
+						Cast<ABaseBlaster>(SpawnedActor)->setCurrAmmo(slot.ItemData->Ammo);
+					}
+				}
+			}
+
+		}
+		EquipWeaponSlot(saveData->currentEquippedSlot);
+	}
+	bFinishedBeginPlay = true;
+}
+
+
+void ABaseCharacter::ShowExperienceHUD()
+{
+	if (bExperienceBarShown)
+	{
+		return;
+	}
+
+	if (!GEngine || !GEngine->GameViewport)
+	{
+		return;
+	}
+
+	static FSlateColorBrush ExperienceBarBackgroundBrush(FLinearColor(0.35f, 0.2f, 0.0f, 1.0f));
+
+	ExperienceSlateWidget =
+		SNew(SOverlay)
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Bottom)
+		.Padding(FMargin(30.f, 0.f, 0.f, 30.f))
+		[
+			SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(FMargin(0.f, 0.f, 0.f, 4.f))
+				[
+					SNew(STextBlock)
+						.Text_Lambda([this]() { return GetExperienceText(); })
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 16))
+						.ColorAndOpacity(FLinearColor::White)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SBox)
+						.WidthOverride(250.f)
+						.HeightOverride(16.f)
+						[
+							SNew(SProgressBar)
+								.Percent_Lambda([this]() { return TOptional<float>(GetExperiencePercent()); })
+								.FillColorAndOpacity(FLinearColor(0.1f, 0.6f, 0.9f, 1.f))
+								.BackgroundImage(&ExperienceBarBackgroundBrush)
+						]
+				]
+		];
+
+	GEngine->GameViewport->AddViewportWidgetContent(ExperienceSlateWidget.ToSharedRef());
+	bExperienceBarShown = true;
+}
+
+void ABaseCharacter::HideExperienceHUD()
+{
+	if (!bExperienceBarShown)
+	{
+		return;
+	}
+
+	if (GEngine && GEngine->GameViewport && ExperienceSlateWidget.IsValid())
+	{
+		GEngine->GameViewport->RemoveViewportWidgetContent(ExperienceSlateWidget.ToSharedRef());
+	}
+
+	ExperienceSlateWidget.Reset();
+	bExperienceBarShown = false;
+}
+void ABaseCharacter::ShowMiniMapHUD()
+{
+	if (!MiniMapWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MiniMapWidget is null in ShowMiniMapHUD()"));
+		return;
+	}
+	MiniMapWidget->SetVisibility(ESlateVisibility::Visible);
+}
+void ABaseCharacter::HideMiniMapHUD()
+{
+	if (!MiniMapWidget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MiniMapWidget is null in HideMiniMapHUD()"));
+		return;
+	}
+	MiniMapWidget->SetVisibility(ESlateVisibility::Hidden);
+}
+
+
+
+void ABaseCharacter::DropEquippedWeapon(FInventorySlotEntry slot)
+{
+	if (!WeaponSlots)
+	{
+		return;
+	}
+	if (slot.ItemData)
+	{
+		if (slot.ItemData->WeaponClass)
+		{
+			slot.bIsEquipped = false;
+			InventoryComponent->RemoveItemByName(slot.GetItemDataName());
+			UWeaponPickup* basePickup = slot.ItemData->WeaponRef->GetComponentByClass<UWeaponPickup>();
+			WeaponSlots->DropEquippedWeapon(basePickup->InventorySlot);
+		}
+
+	}
+
+
+}
+

@@ -10,6 +10,8 @@
 
 ABaseSword::ABaseSword()
 {
+	AnimationStance = ECharacterAnimationStance::OneHandedSword;
+
 	staticMesh = CreateDefaultSubobject<UStaticMeshComponent>("StaticMesh");
 	SetRootComponent(staticMesh);
 	staticMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -51,7 +53,7 @@ void ABaseSword::BoundOverlap(UPrimitiveComponent* OverlappedComponenet, AActor*
 		TSubclassOf<UDamageType> const ValidDamageTypeClass = TSubclassOf<UDamageType>(UDamageType::StaticClass());
 		FDamageEvent DamageEvent(ValidDamageTypeClass);
 		ABaseCharacter* character = Cast<ABaseCharacter>(ParentPawn);
-		if (actor->GetInstigatorController() != character->GetController())
+		if (character && actor->GetInstigatorController() != character->GetController())
 		{
 			actor->TakeDamage(damage, DamageEvent, character->GetController(), this);
 			HitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);

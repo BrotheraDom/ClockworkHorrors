@@ -4,6 +4,8 @@
 #include "CodeGameInstance.h"
 #include "UI/OptionsMenuWidget.h"
 #include "Utils/OptionsSaveData.h"
+#include "Utils/PlayerSaveGame.h"
+#include "BaseCharacter.h"
 
 
 void UCodeGameInstance::Init()
@@ -17,6 +19,7 @@ void UCodeGameInstance::Init()
 	MasterVolume = OptionsData->MasterVolume;
 	SfxVolume = OptionsData->SfxVolume;
 	MusicVolume = OptionsData->MusicVolume;
+	UPlayerSaveGame* playerSave = UPlayerSaveGame::LoadPlayerData();
 }
 
 void UCodeGameInstance::LoadFirstLevel()
@@ -49,12 +52,16 @@ void UCodeGameInstance::LoadLevelSafe(int LevelIndex)
 		{
 			return;
 		}
-
-		APlayerController* PlayerController = GetFirstLocalPlayerController();
-		if (PlayerController) {
-			PlayerController->ClientTravel(LevelName.ToString(), ETravelType::TRAVEL_Absolute);
-		}
-
+			APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+			if (PlayerController) {
+				ABaseCharacter* player = Cast<ABaseCharacter>(PlayerController->GetPawn());
+				if (player)
+				{
+					player->OnLevelChange.Broadcast();
+				}
+					
+				PlayerController->ClientTravel(LevelName.ToString(), ETravelType::TRAVEL_Absolute);
+			}
 	}
 	else
 	{
@@ -75,15 +82,18 @@ void UCodeGameInstance::LoadMainMenu()
 void UCodeGameInstance::SetMasterVolume(float Value)
 {
 	MasterVolume = Value;
+	OnAudioChanged.Broadcast(MasterVolume, SfxVolume, MusicVolume);
 }
 
 void UCodeGameInstance::SetSfxVolume(float Value)
 {
 	SfxVolume = Value;
+	OnAudioChanged.Broadcast(MasterVolume, SfxVolume, MusicVolume);
 }
 
 void UCodeGameInstance::SetMusicVolume(float Value)
 {
 	MusicVolume = Value;
+	OnAudioChanged.Broadcast(MasterVolume, SfxVolume, MusicVolume);
 }
 

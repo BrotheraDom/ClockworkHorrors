@@ -3,6 +3,7 @@
 
 #include "Spawner.h"
 #include "Components/BoxComponent.h"
+#include "Interfaces/PlayerInterface.h"
 
 // Sets default values
 ASpawner::ASpawner()
@@ -51,8 +52,10 @@ void ASpawner::Tick(float DeltaTime)
 
 void ASpawner::BoundOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	
-	startSpawning = true;
+	IPlayerInterface* PlayerInterface = Cast<IPlayerInterface>(OtherActor);
+	if (PlayerInterface) {
+		startSpawning = true;
+	}
 }
 
 void ASpawner::Spawn()

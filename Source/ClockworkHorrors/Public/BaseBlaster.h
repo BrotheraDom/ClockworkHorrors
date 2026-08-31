@@ -28,22 +28,25 @@ protected:
 
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	float maxAmmo;
+	int maxAmmo;
 	void useAmmo();
 	class AProjectile* projectile;
 	virtual const bool CanAttack() override;
 public:
 	virtual void Attack() override;
+	UPROPERTY(BlueprintAssignable, Category = "Blaster")
 	FAmmoDelegate OnAmmoChange;
+	UPROPERTY(BlueprintAssignable, Category = "Blaster")
 	FWeaponDelegate OnReloadStart;
 	UFUNCTION()
 	void requestReload();
 	UFUNCTION()
 	void reloadAmmo();
-	float getCurrAmmo();
-	float getMaxAmmo();
-	void setMaxAmmo(float newMax);
+	int getCurrAmmo();
+	int getMaxAmmo();
+	void setMaxAmmo(int newMax);
+	void setCurrAmmo(int curAmmo);
 private:
-	float currentAmmo;
+	int currentAmmo;
 
 };
