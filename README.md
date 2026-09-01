@@ -21,7 +21,7 @@
 
 ### Quitting
 
-1. Press `M` to open the pause menu.
+1. Press `P` to open the pause menu.
 2. Select **Main Menu**.
 3. Click **Quit**.
 
