@@ -55,6 +55,7 @@ Engine/Programs/UnrealBuildTool/
 
 # Derived Data Cache
 Engine/DerivedDataCache/
+DerivedDataCache/
 
 # Build receipts
 Engine/Build/Receipts/
@@ -100,6 +101,7 @@ Engine/Binaries/DotNET/SwarmAgent.Options.xml
 *.exe.manifest
 
 # Project-specific files
+Build/
 ClockworkHorrors/Build/
 ClockworkHorrors/DerivedDataCache/
 ClockworkHorrors/Binaries/
