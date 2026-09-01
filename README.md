@@ -13,9 +13,10 @@
 | Key | Action |
 |---|---|
 | `Left Mouse Button` | Attack |
+| `Scroll` | Change Spell |
 | `E` | Equip item |
 | `F` | Drop item |
-| `M` | Pause game |
+| `P` | Pause game |
 | `I` | Open inventory |
 
 ### Quitting
