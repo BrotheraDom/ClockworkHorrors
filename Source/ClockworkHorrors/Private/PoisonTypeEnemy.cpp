@@ -38,45 +38,16 @@ APoisonTypeEnemy::APoisonTypeEnemy()
 // PERFORM ATTACK
 // =========================================================
 
-void APoisonTypeEnemy::PerformAttack()
+UStatusEffectType* APoisonTypeEnemy::GetStatusEffectPayload() const
 {
-	if (!TargetActor)
-	{
-		return;
-	}
 
+	UStatusEffectType* StatusEffect = NewObject<UStatusEffectType>();
 
-	ABaseCharacter* PlayerCharacter =
-		Cast<ABaseCharacter>(TargetActor);
+	StatusEffect->Effect = STATUSEFFECT::Poisoned;
+	StatusEffect->Duration = PoisonDuration;
+	StatusEffect->TickDamage = PoisonTickDamage;
+	StatusEffect->TickInterval = PoisonTickInterval;
+	StatusEffect->Percentage = 0.0f;
 
-
-	if (!PlayerCharacter)
-	{
-		return;
-	}
-
-
-	bCanDealDamage = true;
-
-
-	PlayerCharacter->TakeDamage(
-		AttackDamage,
-		FDamageEvent(),
-		GetController(),
-		this
-	);
-
-
-	UE_LOG(
-		LogTemp,
-		Log,
-		TEXT(
-			"%s performed POISON attack for %.2f initial damage."
-		),
-		*GetName(),
-		AttackDamage
-	);
-
-
-	OnPoisonAttack();
+	return StatusEffect;
 }

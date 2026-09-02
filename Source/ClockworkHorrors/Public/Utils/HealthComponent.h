@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Utils/StatusEffectType.h"
 #include "HealthComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCharacterDeath);
@@ -195,7 +196,43 @@ private:
 		/** Delay before regeneration starts again */
 	FTimerHandle TimerHandle_RegenerationRestart;
 
+	// =========================================================
+	// STATUS EFFECTS
+	// =========================================================
 
 
-		
+	TArray<STATUSEFFECT> ActiveStatusEffects;
+
+
+	float PoisonTickDamage = 0.0f;
+	float PoisonRemainingDuration = 0.0f;
+	float PoisonTickInterval = 1.0f;
+	FTimerHandle TimerHandle_PoisonTick;
+	FTimerHandle TimerHandle_PoisonDuration;
+
+	float BurningTickDamage = 0.0f;
+	float BurningRemainingDuration = 0.0f;
+	float BurningTickInterval = 1.0f;
+	FTimerHandle TimerHandle_BurningTick;
+	FTimerHandle TimerHandle_BurningDuration;
+
+	float StunDuration = 0.0f;
+
+	float SlowDuration = 0.0f;
+	float SlowPercentage = 0.0f;
+
+	float WeakenDuration = 0.0f;
+	float WeakenPercentage = 0.0f;
+
+	
+	void ApplyStatusEffect(const UStatusEffectType& Payload);
+
+	
+	void StartPoisonEffect(float TickDamage, float TickInterval, float Duration);
+	void StopPoisonEffect();
+	void OnPoisonTick();
+
+	void StartBurningEffect(float TickDamage, float TickInterval, float Duration);
+	void StopBurningEffect();
+	void OnBurningTick();
 };
