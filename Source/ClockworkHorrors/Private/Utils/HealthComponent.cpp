@@ -9,6 +9,9 @@
 #include "Utils/ExperienceComponent.h"
 #include "Interfaces/CompanionInterface.h"
 #include "Interfaces/PlayerInterface.h"
+#include "Utils/StatusEffectType.h"
+#include "Interfaces/StatusEffectSource.h"
+
 
 #if WITH_EDITOR
 #include "UObject/UnrealType.h"
@@ -158,6 +161,16 @@ void UHealthComponent::OnOwnerTakeAnyDamage(
 		CurrentHealth
 	);
 
+		IStatusEffectSource* Source = Cast<IStatusEffectSource>(DamageCauser);
+		if (Source)
+		{
+			UStatusEffectType* Payload = Source->GetStatusEffectPayload();
+			if (Payload && Payload->Effect != STATUSEFFECT::None)
+			{
+				ApplyStatusEffect(*Payload);
+			}
+		}
+	
 
 	// ---------------------------------------------------------
 	// DEATH
@@ -469,5 +482,155 @@ void UHealthComponent::PostEditChangeProperty(
 		);
 	}
 }
+
+void UHealthComponent::ApplyStatusEffect(const UStatusEffectType& Payload)
+{
+	switch (Payload.Effect)
+	{
+	case STATUSEFFECT::Poisoned:
+		StartPoisonEffect(Payload.TickDamage, Payload.TickInterval, Payload.Duration);
+		break;
+
+	case STATUSEFFECT::Burning:
+		StartBurningEffect(Payload.TickDamage, Payload.TickInterval, Payload.Duration);
+		break;
+
+	case STATUSEFFECT::Stunned:
+		StunDuration = FMath::Max(StunDuration, Payload.Duration);
+		break;
+
+	case STATUSEFFECT::Slowed:
+		SlowDuration = FMath::Max(SlowDuration, Payload.Duration);
+		SlowPercentage = FMath::Max(SlowPercentage, Payload.Percentage);
+		break;
+
+	case STATUSEFFECT::Weakened:
+		WeakenDuration = FMath::Max(WeakenDuration, Payload.Duration);
+		WeakenPercentage = FMath::Max(WeakenPercentage, Payload.Percentage);
+		break;
+
+	default:
+		break;
+	}
+}
+
+void UHealthComponent::StartPoisonEffect(float TickDamage, float TickInterval, float Duration)
+{
+	if (TickDamage <= 0.0f || Duration <= 0.0f)
+	{
+		return;
+	}
+
+	PoisonTickDamage = TickDamage;
+	PoisonTickInterval = FMath::Max(0.05f, TickInterval);
+	PoisonRemainingDuration = Duration;
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_PoisonTick);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle_PoisonTick, this, &UHealthComponent::OnPoisonTick, PoisonTickInterval, true);
+
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_PoisonDuration);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle_PoisonDuration, this, &UHealthComponent::StopPoisonEffect, Duration, false);
+	}
+}
+
+void UHealthComponent::StopPoisonEffect()
+{
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_PoisonTick);
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_PoisonDuration);
+	}
+
+	PoisonTickDamage = 0.0f;
+	PoisonRemainingDuration = 0.0f;
+}
+
+void UHealthComponent::OnPoisonTick()
+{
+	if (IsDead())
+	{
+		StopPoisonEffect();
+		return;
+	}
+
+	if (PoisonTickDamage > 0.0f)
+	{
+		const float Prev = CurrentHealth;
+		CurrentHealth = FMath::Clamp(CurrentHealth - PoisonTickDamage, 0.0f, MaxHealth);
+
+		UE_LOG(LogTemp, Log, TEXT("%s poisoned for %.2f. Health: %.2f -> %.2f"),
+			GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
+			PoisonTickDamage, Prev, CurrentHealth);
+
+		OnCharacterHurt.Broadcast();
+
+		if (CurrentHealth <= 0.0f)
+		{
+			StopPoisonEffect();
+		}
+	}
+}
+
+void UHealthComponent::StartBurningEffect(float TickDamage, float TickInterval, float Duration)
+{
+	if (TickDamage <= 0.0f || Duration <= 0.0f)
+	{
+		return;
+	}
+
+	BurningTickDamage = TickDamage;
+	BurningTickInterval = FMath::Max(0.05f, TickInterval);
+	BurningRemainingDuration = Duration;
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_BurningTick);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle_BurningTick, this, &UHealthComponent::OnBurningTick, BurningTickInterval, true);
+
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_BurningDuration);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle_BurningDuration, this, &UHealthComponent::StopBurningEffect, Duration, false);
+	}
+}
+
+void UHealthComponent::StopBurningEffect()
+{
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_BurningTick);
+		GetWorld()->GetTimerManager().ClearTimer(TimerHandle_BurningDuration);
+	}
+
+	BurningTickDamage = 0.0f;
+	BurningRemainingDuration = 0.0f;
+}
+
+void UHealthComponent::OnBurningTick()
+{
+	if (IsDead())
+	{
+		StopBurningEffect();
+		return;
+	}
+
+	if (BurningTickDamage > 0.0f)
+	{
+		const float Prev = CurrentHealth;
+		CurrentHealth = FMath::Clamp(CurrentHealth - BurningTickDamage, 0.0f, MaxHealth);
+
+		UE_LOG(LogTemp, Log, TEXT("%s burning for %.2f. Health: %.2f -> %.2f"),
+			GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
+			BurningTickDamage, Prev, CurrentHealth);
+
+		OnCharacterHurt.Broadcast();
+
+		if (CurrentHealth <= 0.0f)
+		{
+			StopBurningEffect();
+		}
+	}
+}
+
 
 #endif

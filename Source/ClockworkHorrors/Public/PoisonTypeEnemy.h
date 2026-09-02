@@ -4,11 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Enemy.h"
+#include "Interfaces/StatusEffectSource.h"
 #include "PoisonTypeEnemy.generated.h"
 
 
 UCLASS()
-class CLOCKWORKHORRORS_API APoisonTypeEnemy : public AEnemy
+class CLOCKWORKHORRORS_API APoisonTypeEnemy : public AEnemy, public IStatusEffectSource
 {
 	GENERATED_BODY()
 
@@ -24,7 +25,6 @@ protected:
 	// ATTACK
 	// =========================================================
 
-	virtual void PerformAttack() override;
 
 
 	// =========================================================
@@ -70,4 +70,6 @@ protected:
 		Category = "Enemy|Poison"
 	)
 	void OnPoisonAttack();
+
+	virtual UStatusEffectType* GetStatusEffectPayload() const override;
 };
